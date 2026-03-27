@@ -28,7 +28,8 @@ export default function StatsBar({ total, backlog, inProgress, completed }: Stat
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.05, duration: 0.3 }}
-          className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm"
+          className="relative overflow-hidden rounded-2xl border p-4 backdrop-blur-sm"
+          style={{ background: "var(--surface)", borderColor: "var(--border-color)" }}
         >
           <div className={`absolute -right-3 -top-3 h-16 w-16 rounded-full bg-gradient-to-br ${item.gradient} opacity-15 blur-xl`} />
           <div className="flex items-center gap-3">
@@ -36,8 +37,8 @@ export default function StatsBar({ total, backlog, inProgress, completed }: Stat
               <item.icon className="h-4 w-4 text-white" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">{values[item.key]}</p>
-              <p className="text-xs text-zinc-400">{item.label}</p>
+              <p className="text-2xl font-bold" style={{ color: "var(--card-text)" }}>{values[item.key]}</p>
+              <p className="text-xs" style={{ color: "var(--card-text-secondary)" }}>{item.label}</p>
             </div>
           </div>
         </motion.div>

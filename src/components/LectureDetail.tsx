@@ -4,15 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import {
-  X,
-  Save,
-  Clock,
-  Calendar,
-  ArrowRight,
-  ArrowLeft,
-  Tag,
-  Trash2,
-  AlertTriangle,
+  X, Save, Clock, Calendar, ArrowRight, ArrowLeft, Tag, Trash2,
 } from "lucide-react";
 import { Lecture, LectureStatus, Priority, Subject } from "@/lib/types";
 
@@ -27,9 +19,7 @@ interface LectureDetailProps {
 }
 
 const statusLabels: Record<LectureStatus, string> = {
-  backlog: "Backlog",
-  in_progress: "In Progress",
-  completed: "Completed",
+  backlog: "Backlog", in_progress: "In Progress", completed: "Completed",
 };
 
 const statusColors: Record<LectureStatus, string> = {
@@ -40,15 +30,10 @@ const statusColors: Record<LectureStatus, string> = {
 
 const statusFlow: LectureStatus[] = ["backlog", "in_progress", "completed"];
 
-export default function LectureDetail({
-  lecture,
-  subject,
-  subjects,
-  onUpdate,
-  onMove,
-  onDelete,
-  onClose,
-}: LectureDetailProps) {
+const inputStyle = { background: "var(--input-bg)", borderColor: "var(--border-color)", color: "var(--fg)" };
+const labelStyle = { color: "var(--muted-fg)" };
+
+export default function LectureDetail({ lecture, subject, subjects, onUpdate, onMove, onDelete, onClose }: LectureDetailProps) {
   const [title, setTitle] = useState(lecture.title);
   const [notes, setNotes] = useState(lecture.notes);
   const [priority, setPriority] = useState<Priority>(lecture.priority);
@@ -62,104 +47,82 @@ export default function LectureDetail({
 
   useEffect(() => {
     const changed =
-      title !== lecture.title ||
-      notes !== lecture.notes ||
-      priority !== lecture.priority ||
-      duration !== (lecture.duration?.toString() ?? "") ||
-      lectureDate !== (lecture.lectureDate ?? "") ||
-      subjectId !== lecture.subjectId ||
-      JSON.stringify(tags) !== JSON.stringify(lecture.tags);
+      title !== lecture.title || notes !== lecture.notes || priority !== lecture.priority ||
+      duration !== (lecture.duration?.toString() ?? "") || lectureDate !== (lecture.lectureDate ?? "") ||
+      subjectId !== lecture.subjectId || JSON.stringify(tags) !== JSON.stringify(lecture.tags);
     setHasChanges(changed);
   }, [title, notes, priority, duration, lectureDate, subjectId, tags, lecture]);
 
   const handleSave = () => {
     onUpdate(lecture.id, {
-      title: title.trim(),
-      notes: notes.trim(),
-      priority,
+      title: title.trim(), notes: notes.trim(), priority,
       duration: duration ? parseInt(duration) : null,
-      lectureDate: lectureDate || null,
-      subjectId,
-      tags,
+      lectureDate: lectureDate || null, subjectId, tags,
     });
     setHasChanges(false);
   };
 
   const addTag = () => {
     const t = tagInput.trim().toLowerCase();
-    if (t && !tags.includes(t)) {
-      setTags([...tags, t]);
-      setTagInput("");
-    }
+    if (t && !tags.includes(t)) { setTags([...tags, t]); setTagInput(""); }
   };
 
   const currentIdx = statusFlow.indexOf(lecture.status);
 
   const autoResizeNotes = () => {
     const el = notesRef.current;
-    if (el) {
-      el.style.height = "auto";
-      el.style.height = Math.max(200, el.scrollHeight) + "px";
-    }
+    if (el) { el.style.height = "auto"; el.style.height = Math.max(200, el.scrollHeight) + "px"; }
   };
 
-  useEffect(() => {
-    autoResizeNotes();
-  }, [notes]);
+  useEffect(() => { autoResizeNotes(); }, [notes]);
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-start justify-end bg-black/50 backdrop-blur-sm"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-start justify-end backdrop-blur-sm"
+      style={{ background: "var(--overlay-bg)" }}
       onClick={onClose}
     >
       <motion.div
-        initial={{ x: "100%" }}
-        animate={{ x: 0 }}
-        exit={{ x: "100%" }}
+        initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
         transition={{ type: "spring", damping: 30, stiffness: 300 }}
         onClick={(e) => e.stopPropagation()}
-        className="h-full w-full max-w-lg overflow-y-auto border-l border-white/10 bg-zinc-950 p-6"
+        className="h-full w-full max-w-lg overflow-y-auto border-l p-6"
+        style={{ background: "var(--detail-bg)", borderColor: "var(--border-color)" }}
       >
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span
-              className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusColors[lecture.status]}`}
-            >
+            <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusColors[lecture.status]}`}>
               {statusLabels[lecture.status]}
             </span>
             {subject && (
-              <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+              <span className="flex items-center gap-1.5 text-xs" style={labelStyle}>
                 <span className="h-2 w-2 rounded-full" style={{ backgroundColor: subject.color }} />
                 {subject.name}
               </span>
             )}
           </div>
-          <button onClick={onClose} className="rounded-md p-1 text-zinc-500 hover:text-zinc-300">
+          <button onClick={onClose} className="rounded-md p-1" style={{ color: "var(--muted-fg)" }}>
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="space-y-5">
           <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full bg-transparent text-xl font-semibold text-white outline-none placeholder-zinc-600"
+            value={title} onChange={(e) => setTitle(e.target.value)}
+            className="w-full bg-transparent text-xl font-semibold outline-none"
+            style={{ color: "var(--fg)" }}
             placeholder="Lecture title..."
           />
 
           <div className="flex items-center gap-2">
-            {statusFlow.map((status, idx) => (
+            {statusFlow.map((status) => (
               <button
-                key={status}
-                onClick={() => onMove(lecture.id, status)}
+                key={status} onClick={() => onMove(lecture.id, status)}
                 className={`rounded-lg border px-3 py-1.5 text-xs font-medium capitalize transition-all ${
-                  lecture.status === status
-                    ? statusColors[status]
-                    : "border-white/5 text-zinc-600 hover:border-white/10 hover:text-zinc-400"
+                  lecture.status === status ? statusColors[status] : ""
                 }`}
+                style={lecture.status !== status ? { borderColor: "var(--border-color)", color: "var(--muted-fg)" } : undefined}
               >
                 {statusLabels[status]}
               </button>
@@ -168,37 +131,28 @@ export default function LectureDetail({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs text-zinc-500">Subject</label>
-              <select
-                value={subjectId}
-                onChange={(e) => setSubjectId(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500/50 [&>option]:bg-zinc-900"
+              <label className="mb-1 block text-xs" style={labelStyle}>Subject</label>
+              <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)}
+                className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
+                style={inputStyle}
               >
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
+                {subjects.map((s) => (<option key={s.id} value={s.id}>{s.name}</option>))}
               </select>
             </div>
-
             <div>
-              <label className="mb-1 block text-xs text-zinc-500">Priority</label>
+              <label className="mb-1 block text-xs" style={labelStyle}>Priority</label>
               <div className="flex gap-1">
                 {(["low", "medium", "high"] as Priority[]).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setPriority(p)}
+                  <button key={p} onClick={() => setPriority(p)}
                     className={`flex-1 rounded-lg border px-2 py-2 text-xs font-medium capitalize transition-all ${
                       priority === p
-                        ? p === "high"
-                          ? "border-red-500/30 bg-red-500/10 text-red-400"
-                          : p === "medium"
-                          ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
-                          : "border-zinc-500/30 bg-zinc-500/10 text-zinc-400"
-                        : "border-white/5 bg-white/[0.02] text-zinc-600 hover:bg-white/5"
+                        ? p === "high" ? "border-red-500/30 bg-red-500/10 text-red-400"
+                        : p === "medium" ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                        : "border-zinc-500/30 bg-zinc-500/10 text-zinc-400"
+                        : ""
                     }`}
-                  >
-                    {p}
-                  </button>
+                    style={priority !== p ? { borderColor: "var(--border-color)", background: "var(--surface)", color: "var(--muted-fg)" } : undefined}
+                  >{p}</button>
                 ))}
               </div>
             </div>
@@ -206,57 +160,48 @@ export default function LectureDetail({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 flex items-center gap-1 text-xs text-zinc-500">
+              <label className="mb-1 flex items-center gap-1 text-xs" style={labelStyle}>
                 <Clock className="h-3 w-3" /> Duration (min)
               </label>
-              <input
-                value={duration}
-                onChange={(e) => setDuration(e.target.value.replace(/\D/g, ""))}
+              <input value={duration} onChange={(e) => setDuration(e.target.value.replace(/\D/g, ""))}
                 placeholder="e.g. 60"
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-zinc-600 outline-none focus:border-indigo-500/50"
+                className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
+                style={inputStyle}
               />
             </div>
             <div>
-              <label className="mb-1 flex items-center gap-1 text-xs text-zinc-500">
+              <label className="mb-1 flex items-center gap-1 text-xs" style={labelStyle}>
                 <Calendar className="h-3 w-3" /> Lecture Date
               </label>
-              <input
-                type="date"
-                value={lectureDate}
-                onChange={(e) => setLectureDate(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500/50 [color-scheme:dark]"
+              <input type="date" value={lectureDate} onChange={(e) => setLectureDate(e.target.value)}
+                className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
+                style={inputStyle}
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 flex items-center gap-1 text-xs text-zinc-500">
+            <label className="mb-1 flex items-center gap-1 text-xs" style={labelStyle}>
               <Tag className="h-3 w-3" /> Tags
             </label>
             <div className="flex gap-2">
-              <input
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
+              <input value={tagInput} onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
                 placeholder="Add tag..."
-                className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-zinc-600 outline-none focus:border-indigo-500/50"
+                className="flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
+                style={inputStyle}
               />
-              <button onClick={addTag} className="rounded-lg bg-white/5 px-3 text-zinc-400 hover:bg-white/10">
+              <button onClick={addTag} className="rounded-lg px-3" style={{ background: "var(--surface-hover)", color: "var(--muted-fg)" }}>
                 <Tag className="h-4 w-4" />
               </button>
             </div>
             {tags.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center gap-1 rounded-md bg-white/5 px-2 py-1 text-xs text-zinc-400"
-                  >
+                  <span key={tag} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs"
+                    style={{ background: "var(--surface-hover)", color: "var(--muted-fg)" }}>
                     {tag}
-                    <button
-                      onClick={() => setTags(tags.filter((t) => t !== tag))}
-                      className="text-zinc-600 hover:text-zinc-300"
-                    >
+                    <button onClick={() => setTags(tags.filter((t) => t !== tag))} style={{ color: "var(--card-text-secondary)" }}>
                       <X className="h-3 w-3" />
                     </button>
                   </span>
@@ -266,61 +211,49 @@ export default function LectureDetail({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs text-zinc-500">Notes</label>
-            <textarea
-              ref={notesRef}
-              value={notes}
+            <label className="mb-1 block text-xs" style={labelStyle}>Notes</label>
+            <textarea ref={notesRef} value={notes}
               onChange={(e) => { setNotes(e.target.value); autoResizeNotes(); }}
               placeholder="Write your lecture notes here..."
-              className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm leading-relaxed text-zinc-300 placeholder-zinc-600 outline-none focus:border-indigo-500/50"
-              style={{ minHeight: "200px" }}
+              className="w-full resize-none rounded-lg border px-4 py-3 text-sm leading-relaxed outline-none focus:border-indigo-500/50"
+              style={{ ...inputStyle, minHeight: "200px" }}
             />
           </div>
 
-          <div className="flex items-center justify-between border-t border-white/5 pt-4">
+          <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: "var(--border-color)" }}>
             <div className="flex gap-2">
               {hasChanges && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
+                <motion.button initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                   onClick={handleSave}
-                  className="flex items-center gap-1.5 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600"
-                >
-                  <Save className="h-4 w-4" />
-                  Save Changes
+                  className="flex items-center gap-1.5 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600">
+                  <Save className="h-4 w-4" /> Save Changes
                 </motion.button>
               )}
               <div className="flex gap-1">
                 {currentIdx > 0 && (
-                  <button
-                    onClick={() => onMove(lecture.id, statusFlow[currentIdx - 1])}
-                    className="flex items-center gap-1 rounded-lg bg-white/5 px-3 py-2 text-xs text-zinc-400 hover:bg-white/10"
-                  >
-                    <ArrowLeft className="h-3.5 w-3.5" />
-                    {statusLabels[statusFlow[currentIdx - 1]]}
+                  <button onClick={() => onMove(lecture.id, statusFlow[currentIdx - 1])}
+                    className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs"
+                    style={{ background: "var(--surface-hover)", color: "var(--muted-fg)" }}>
+                    <ArrowLeft className="h-3.5 w-3.5" /> {statusLabels[statusFlow[currentIdx - 1]]}
                   </button>
                 )}
                 {currentIdx < statusFlow.length - 1 && (
-                  <button
-                    onClick={() => onMove(lecture.id, statusFlow[currentIdx + 1])}
-                    className="flex items-center gap-1 rounded-lg bg-white/5 px-3 py-2 text-xs text-zinc-400 hover:bg-white/10"
-                  >
-                    {statusLabels[statusFlow[currentIdx + 1]]}
-                    <ArrowRight className="h-3.5 w-3.5" />
+                  <button onClick={() => onMove(lecture.id, statusFlow[currentIdx + 1])}
+                    className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs"
+                    style={{ background: "var(--surface-hover)", color: "var(--muted-fg)" }}>
+                    {statusLabels[statusFlow[currentIdx + 1]]} <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
             </div>
-            <button
-              onClick={() => { onDelete(lecture.id); onClose(); }}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-zinc-600 transition-colors hover:bg-red-500/10 hover:text-red-400"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete
+            <button onClick={() => { onDelete(lecture.id); onClose(); }}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs transition-colors hover:bg-red-500/10 hover:text-red-400"
+              style={{ color: "var(--card-text-secondary)" }}>
+              <Trash2 className="h-3.5 w-3.5" /> Delete
             </button>
           </div>
 
-          <p className="text-[10px] text-zinc-700">
+          <p className="text-[10px]" style={{ color: "var(--card-text-secondary)" }}>
             Created {format(new Date(lecture.createdAt), "MMM d, yyyy")} &middot; Updated{" "}
             {format(new Date(lecture.updatedAt), "MMM d, yyyy 'at' h:mm a")}
           </p>

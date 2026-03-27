@@ -15,12 +15,12 @@ export default function SubjectBadge({ name, color, size = "sm", onClick, active
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-full border font-medium transition-all ${sizeClasses} ${
+      className={`inline-flex items-center gap-1.5 rounded-full border font-medium transition-all ${sizeClasses}`}
+      style={
         active
-          ? "border-white/20 bg-white/10 text-white"
-          : "border-white/5 bg-white/[0.03] text-zinc-400 hover:border-white/15 hover:bg-white/[0.06] hover:text-zinc-300"
-      }`}
-      style={active ? { borderColor: color + "40", backgroundColor: color + "15" } : undefined}
+          ? { borderColor: color + "40", backgroundColor: color + "15", color: "var(--fg)" }
+          : { borderColor: "var(--border-color)", background: "var(--surface)", color: "var(--muted-fg)" }
+      }
     >
       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
       {name}

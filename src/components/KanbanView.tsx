@@ -20,19 +20,19 @@ const columns: { status: LectureStatus; label: string; icon: React.ElementType; 
   { status: "completed", label: "Completed", icon: CheckCircle2, accent: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
 ];
 
-export default function KanbanView({ lectures, subjects, getSubject, onSelect, onMove, onDelete }: KanbanViewProps) {
+export default function KanbanView({ lectures, getSubject, onSelect, onMove, onDelete }: KanbanViewProps) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       {columns.map((col) => {
         const colLectures = lectures.filter((l) => l.status === col.status);
         return (
-          <div key={col.status} className="rounded-2xl border border-white/[0.06] bg-white/[0.015] p-3">
+          <div key={col.status} className="rounded-2xl border p-3" style={{ background: "var(--surface)", borderColor: "var(--border-color)" }}>
             <div className="mb-3 flex items-center gap-2 px-1">
               <div className={`flex h-6 w-6 items-center justify-center rounded-md border ${col.accent}`}>
                 <col.icon className="h-3.5 w-3.5" />
               </div>
-              <span className="text-sm font-medium text-zinc-400">{col.label}</span>
-              <span className="ml-auto rounded-full bg-white/5 px-2 py-0.5 text-xs text-zinc-600">
+              <span className="text-sm font-medium" style={{ color: "var(--muted-fg)" }}>{col.label}</span>
+              <span className="ml-auto rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--surface-hover)", color: "var(--card-text-secondary)" }}>
                 {colLectures.length}
               </span>
             </div>
@@ -50,7 +50,7 @@ export default function KanbanView({ lectures, subjects, getSubject, onSelect, o
                 ))}
               </AnimatePresence>
               {colLectures.length === 0 && (
-                <p className="py-8 text-center text-xs text-zinc-700">No lectures</p>
+                <p className="py-8 text-center text-xs" style={{ color: "var(--card-text-secondary)" }}>No lectures</p>
               )}
             </div>
           </div>

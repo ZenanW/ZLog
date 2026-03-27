@@ -2,9 +2,10 @@
 
 import { useState, useMemo } from "react";
 import { AnimatePresence } from "framer-motion";
-import { BookOpen, LayoutGrid, List, Power, LogOut } from "lucide-react";
+import { BookOpen, LayoutGrid, List, Power, LogOut, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppState } from "@/hooks/useAppState";
+import { useTheme } from "@/hooks/useTheme";
 import { Lecture, LectureStatus, Priority } from "@/lib/types";
 import AuthGuard from "@/components/AuthGuard";
 import StatsBar from "@/components/StatsBar";
@@ -19,6 +20,7 @@ type ViewMode = "list" | "kanban";
 
 export default function AppShell() {
   const { user, idToken, loading: authLoading, signIn, signOut } = useAuth();
+  const { theme, toggle: toggleTheme } = useTheme();
   const app = useAppState(idToken);
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
   const [search, setSearch] = useState("");
@@ -74,25 +76,26 @@ export default function AppShell() {
         </div>
       ) : (
         <div className="min-h-screen">
-          <header className="sticky top-0 z-40 border-b border-white/5 bg-zinc-950/80 backdrop-blur-xl">
+          <header className="theme-header sticky top-0 z-40 border-b backdrop-blur-xl" style={{ background: "var(--header-bg)", borderColor: "var(--border-color)" }}>
             <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600">
                   <BookOpen className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-white">Backlog Track</h1>
-                  <p className="text-xs text-zinc-500">Lecture & Notes Tracker</p>
+                  <h1 className="theme-text-primary text-lg font-bold" style={{ color: "var(--fg)" }}>Backlog Track</h1>
+                  <p className="text-xs" style={{ color: "var(--muted-fg)" }}>Lecture & Notes Tracker</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1 rounded-lg border border-white/5 bg-white/[0.02] p-0.5">
+                <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ border: "1px solid var(--border-color)", background: "var(--surface)" }}>
                   <button
                     onClick={() => setViewMode("kanban")}
                     className={`rounded-md p-2 transition-all ${
-                      viewMode === "kanban" ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
+                      viewMode === "kanban" ? "bg-indigo-500/15 text-indigo-500" : "hover:opacity-80"
                     }`}
+                    style={{ color: viewMode === "kanban" ? undefined : "var(--muted-fg)" }}
                     title="Board view"
                   >
                     <LayoutGrid className="h-4 w-4" />
@@ -100,13 +103,23 @@ export default function AppShell() {
                   <button
                     onClick={() => setViewMode("list")}
                     className={`rounded-md p-2 transition-all ${
-                      viewMode === "list" ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
+                      viewMode === "list" ? "bg-indigo-500/15 text-indigo-500" : "hover:opacity-80"
                     }`}
+                    style={{ color: viewMode === "list" ? undefined : "var(--muted-fg)" }}
                     title="List view"
                   >
                     <List className="h-4 w-4" />
                   </button>
                 </div>
+
+                <button
+                  onClick={toggleTheme}
+                  className="rounded-lg p-2 transition-colors hover:bg-indigo-500/10 hover:text-indigo-500"
+                  style={{ color: "var(--muted-fg)" }}
+                  title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                >
+                  {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                </button>
 
                 {user && (
                   <div className="flex items-center gap-2">
@@ -114,13 +127,15 @@ export default function AppShell() {
                       <img
                         src={user.photoURL}
                         alt=""
-                        className="h-7 w-7 rounded-full border border-white/10"
+                        className="h-7 w-7 rounded-full"
+                        style={{ border: "1px solid var(--border-color)" }}
                         referrerPolicy="no-referrer"
                       />
                     )}
                     <button
                       onClick={signOut}
-                      className="rounded-lg p-2 text-zinc-600 transition-colors hover:bg-white/5 hover:text-zinc-300"
+                      className="rounded-lg p-2 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                      style={{ color: "var(--muted-fg)" }}
                       title="Sign out"
                     >
                       <LogOut className="h-4 w-4" />
@@ -136,7 +151,8 @@ export default function AppShell() {
                         window.close();
                       }
                     }}
-                    className="rounded-lg p-2 text-zinc-600 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                    className="rounded-lg p-2 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                    style={{ color: "var(--muted-fg)" }}
                     title="Shut down server"
                   >
                     <Power className="h-4 w-4" />
