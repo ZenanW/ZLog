@@ -93,9 +93,9 @@ export default function SubjectManager({ subjects, onAdd, onUpdate, onDelete, le
                     key={c}
                     onClick={() => setColor(c)}
                     className={`h-6 w-6 rounded-full transition-all ${
-                      color === c ? "scale-110 ring-2 ring-indigo-400 ring-offset-1" : "hover:scale-105"
+                      color === c ? "scale-110 ring-2 ring-indigo-400 ring-offset-1 ring-offset-[var(--bg)]" : "hover:scale-105"
                     }`}
-                    style={{ backgroundColor: c, ringOffsetColor: "var(--bg)" }}
+                    style={{ backgroundColor: c }}
                   />
                 ))}
               </div>
