@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -18,7 +18,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (body.subjectId !== undefined) dbUpdates.subject_id = body.subjectId;
     if (body.tags !== undefined) dbUpdates.tags = body.tags;
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from("lectures")
       .update(dbUpdates)
       .eq("id", id)
@@ -38,7 +38,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const userId = await verifyToken(request);
     const { id } = await params;
 
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from("lectures")
       .delete()
       .eq("id", id)

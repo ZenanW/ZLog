@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -8,7 +8,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { id } = await params;
     const body = await request.json();
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from("subjects")
       .update(body)
       .eq("id", id)
@@ -28,7 +28,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const userId = await verifyToken(request);
     const { id } = await params;
 
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from("subjects")
       .delete()
       .eq("id", id)

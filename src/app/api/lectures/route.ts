@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 export async function GET(request: NextRequest) {
   try {
     const userId = await verifyToken(request);
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from("lectures")
       .select("*")
       .eq("user_id", userId)
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const userId = await verifyToken(request);
     const body = await request.json();
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from("lectures")
       .insert({
         id: body.id,
