@@ -1,65 +1,233 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useMemo } from "react";
+import { AnimatePresence } from "framer-motion";
+import { BookOpen, LayoutGrid, List, Power, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useAppState } from "@/hooks/useAppState";
+import { Lecture, LectureStatus, Priority } from "@/lib/types";
+import AuthGuard from "@/components/AuthGuard";
+import StatsBar from "@/components/StatsBar";
+import SubjectManager from "@/components/SubjectManager";
+import AddLectureForm from "@/components/AddLectureForm";
+import SearchFilter from "@/components/SearchFilter";
+import LectureCard from "@/components/LectureCard";
+import LectureDetail from "@/components/LectureDetail";
+import KanbanView from "@/components/KanbanView";
+
+type ViewMode = "list" | "kanban";
 
 export default function Home() {
+  const { user, idToken, loading: authLoading, signIn, signOut } = useAuth();
+  const app = useAppState(idToken);
+  const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<LectureStatus | "all">("all");
+  const [priorityFilter, setPriorityFilter] = useState<Priority | "all">("all");
+  const [subjectFilter, setSubjectFilter] = useState<string | "all">("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("kanban");
+
+  const lectureCountBySubject = useMemo(() => {
+    const counts: Record<string, number> = {};
+    app.lectures.forEach((l) => {
+      counts[l.subjectId] = (counts[l.subjectId] ?? 0) + 1;
+    });
+    return counts;
+  }, [app.lectures]);
+
+  const filtered = useMemo(() => {
+    let result = app.lectures;
+    if (statusFilter !== "all") result = result.filter((l) => l.status === statusFilter);
+    if (priorityFilter !== "all") result = result.filter((l) => l.priority === priorityFilter);
+    if (subjectFilter !== "all") result = result.filter((l) => l.subjectId === subjectFilter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (l) =>
+          l.title.toLowerCase().includes(q) ||
+          l.notes.toLowerCase().includes(q) ||
+          l.tags.some((t) => t.includes(q))
+      );
+    }
+    return result.sort((a, b) => {
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      if (a.status === b.status) {
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      }
+      return 0;
+    });
+  }, [app.lectures, statusFilter, priorityFilter, subjectFilter, search]);
+
+  const currentSelectedLecture = selectedLecture
+    ? app.lectures.find((l) => l.id === selectedLecture.id) ?? null
+    : null;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <AuthGuard user={user} loading={authLoading} onSignIn={signIn}>
+      {!app.loaded ? (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600">
+            <BookOpen className="h-7 w-7 text-white" />
+          </div>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-indigo-500" />
+          <p className="text-sm text-zinc-500">Loading your backlog...</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      ) : (
+        <div className="min-h-screen">
+          <header className="sticky top-0 z-40 border-b border-white/5 bg-zinc-950/80 backdrop-blur-xl">
+            <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600">
+                  <BookOpen className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-white">Backlog Track</h1>
+                  <p className="text-xs text-zinc-500">Lecture & Notes Tracker</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1 rounded-lg border border-white/5 bg-white/[0.02] p-0.5">
+                  <button
+                    onClick={() => setViewMode("kanban")}
+                    className={`rounded-md p-2 transition-all ${
+                      viewMode === "kanban" ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
+                    }`}
+                    title="Board view"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`rounded-md p-2 transition-all ${
+                      viewMode === "list" ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
+                    }`}
+                    title="List view"
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {user && (
+                  <div className="flex items-center gap-2">
+                    {user.photoURL && (
+                      <img
+                        src={user.photoURL}
+                        alt=""
+                        className="h-7 w-7 rounded-full border border-white/10"
+                        referrerPolicy="no-referrer"
+                      />
+                    )}
+                    <button
+                      onClick={signOut}
+                      className="rounded-lg p-2 text-zinc-600 transition-colors hover:bg-white/5 hover:text-zinc-300"
+                      title="Sign out"
+                    >
+                      <LogOut className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  onClick={async () => {
+                    if (confirm("Shut down the server and close?")) {
+                      await fetch("/api/shutdown", { method: "POST" }).catch(() => {});
+                      window.close();
+                    }
+                  }}
+                  className="rounded-lg p-2 text-zinc-600 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                  title="Shut down server"
+                >
+                  <Power className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+            <div className="mb-6">
+              <StatsBar {...app.stats} />
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+              <aside className="space-y-4">
+                <SubjectManager
+                  subjects={app.subjects}
+                  onAdd={app.addSubject}
+                  onUpdate={app.updateSubject}
+                  onDelete={app.deleteSubject}
+                  lectureCountBySubject={lectureCountBySubject}
+                />
+                <AddLectureForm subjects={app.subjects} onAdd={app.addLecture} />
+              </aside>
+
+              <section className="space-y-4">
+                <SearchFilter
+                  search={search}
+                  onSearchChange={setSearch}
+                  statusFilter={statusFilter}
+                  onStatusFilterChange={setStatusFilter}
+                  priorityFilter={priorityFilter}
+                  onPriorityFilterChange={setPriorityFilter}
+                  subjectFilter={subjectFilter}
+                  onSubjectFilterChange={setSubjectFilter}
+                  subjects={app.subjects}
+                />
+
+                {viewMode === "kanban" ? (
+                  <KanbanView
+                    lectures={filtered}
+                    subjects={app.subjects}
+                    getSubject={app.getSubject}
+                    onSelect={setSelectedLecture}
+                    onMove={app.moveLecture}
+                    onDelete={app.deleteLecture}
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <AnimatePresence>
+                      {filtered.map((lecture) => (
+                        <LectureCard
+                          key={lecture.id}
+                          lecture={lecture}
+                          subject={app.getSubject(lecture.subjectId)}
+                          onSelect={setSelectedLecture}
+                          onMove={app.moveLecture}
+                          onDelete={app.deleteLecture}
+                        />
+                      ))}
+                    </AnimatePresence>
+                    {filtered.length === 0 && (
+                      <div className="py-16 text-center">
+                        <BookOpen className="mx-auto mb-3 h-10 w-10 text-zinc-800" />
+                        <p className="text-sm text-zinc-600">
+                          {app.lectures.length === 0
+                            ? "No lectures yet. Add a subject and your first lecture to get started."
+                            : "No lectures match your filters."}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            </div>
+          </main>
+
+          <AnimatePresence>
+            {currentSelectedLecture && (
+              <LectureDetail
+                lecture={currentSelectedLecture}
+                subject={app.getSubject(currentSelectedLecture.subjectId)}
+                subjects={app.subjects}
+                onUpdate={app.updateLecture}
+                onMove={app.moveLecture}
+                onDelete={app.deleteLecture}
+                onClose={() => setSelectedLecture(null)}
+              />
+            )}
+          </AnimatePresence>
         </div>
-      </main>
-    </div>
+      )}
+    </AuthGuard>
   );
 }
