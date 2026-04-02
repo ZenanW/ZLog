@@ -2,27 +2,36 @@
 
 import { useState, useMemo } from "react";
 import { AnimatePresence } from "framer-motion";
-import { BookOpen, LayoutGrid, List, Power, LogOut, Sun, Moon } from "lucide-react";
+import { BookOpen, LayoutGrid, List, Power, LogOut, Sun, Moon, GraduationCap } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppState } from "@/hooks/useAppState";
+import { useExamState } from "@/hooks/useExamState";
 import { useTheme } from "@/hooks/useTheme";
-import { Lecture, LectureStatus, Priority } from "@/lib/types";
+import { Exam, Lecture, LectureStatus, Priority } from "@/lib/types";
 import AuthGuard from "@/components/AuthGuard";
 import StatsBar from "@/components/StatsBar";
+import ExamStatsBar from "@/components/ExamStatsBar";
 import SubjectManager from "@/components/SubjectManager";
 import AddLectureForm from "@/components/AddLectureForm";
 import SearchFilter from "@/components/SearchFilter";
 import LectureCard from "@/components/LectureCard";
 import LectureDetail from "@/components/LectureDetail";
 import KanbanView from "@/components/KanbanView";
+import ExamList from "@/components/ExamList";
+import ExamCard from "@/components/ExamCard";
+import ExamDetail from "@/components/ExamDetail";
 
 type ViewMode = "list" | "kanban";
+type AppTab = "lectures" | "exams";
 
 export default function AppShell() {
   const { user, idToken, loading: authLoading, signIn, signOut } = useAuth();
   const { theme, toggle: toggleTheme } = useTheme();
   const app = useAppState(idToken);
+  const examState = useExamState(idToken);
+  const [appTab, setAppTab] = useState<AppTab>("lectures");
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
+  const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<LectureStatus | "all">("all");
   const [priorityFilter, setPriorityFilter] = useState<Priority | "all">("all");
@@ -64,9 +73,22 @@ export default function AppShell() {
     ? app.lectures.find((l) => l.id === selectedLecture.id) ?? null
     : null;
 
+  const currentSelectedExam = selectedExam
+    ? examState.exams.find((e) => e.id === selectedExam.id) ?? null
+    : null;
+
+  const topicProgress = useMemo(() => {
+    const result: Record<string, { revised: number; total: number }> = {};
+    for (const exam of examState.exams) {
+      const t = examState.getTopicsForExam(exam.id);
+      result[exam.id] = { revised: t.filter((tp) => tp.revised).length, total: t.length };
+    }
+    return result;
+  }, [examState]);
+
   return (
     <AuthGuard user={user} loading={authLoading} onSignIn={signIn}>
-      {!app.loaded ? (
+      {!app.loaded || !examState.loaded ? (
         <div className="flex min-h-screen flex-col items-center justify-center gap-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600">
             <BookOpen className="h-7 w-7 text-white" />
@@ -91,26 +113,51 @@ export default function AppShell() {
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ border: "1px solid var(--border-color)", background: "var(--surface)" }}>
                   <button
-                    onClick={() => setViewMode("kanban")}
-                    className={`rounded-md p-2 transition-all ${
-                      viewMode === "kanban" ? "bg-indigo-500/15 text-indigo-500" : "hover:opacity-80"
+                    onClick={() => setAppTab("lectures")}
+                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all ${
+                      appTab === "lectures" ? "bg-indigo-500/15 text-indigo-500" : "hover:opacity-80"
                     }`}
-                    style={{ color: viewMode === "kanban" ? undefined : "var(--muted-fg)" }}
-                    title="Board view"
+                    style={{ color: appTab === "lectures" ? undefined : "var(--muted-fg)" }}
                   >
-                    <LayoutGrid className="h-4 w-4" />
+                    <BookOpen className="h-3.5 w-3.5" />
+                    Lectures
                   </button>
                   <button
-                    onClick={() => setViewMode("list")}
-                    className={`rounded-md p-2 transition-all ${
-                      viewMode === "list" ? "bg-indigo-500/15 text-indigo-500" : "hover:opacity-80"
+                    onClick={() => setAppTab("exams")}
+                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all ${
+                      appTab === "exams" ? "bg-indigo-500/15 text-indigo-500" : "hover:opacity-80"
                     }`}
-                    style={{ color: viewMode === "list" ? undefined : "var(--muted-fg)" }}
-                    title="List view"
+                    style={{ color: appTab === "exams" ? undefined : "var(--muted-fg)" }}
                   >
-                    <List className="h-4 w-4" />
+                    <GraduationCap className="h-3.5 w-3.5" />
+                    Exams
                   </button>
                 </div>
+
+                {appTab === "lectures" && (
+                  <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ border: "1px solid var(--border-color)", background: "var(--surface)" }}>
+                    <button
+                      onClick={() => setViewMode("kanban")}
+                      className={`rounded-md p-2 transition-all ${
+                        viewMode === "kanban" ? "bg-indigo-500/15 text-indigo-500" : "hover:opacity-80"
+                      }`}
+                      style={{ color: viewMode === "kanban" ? undefined : "var(--muted-fg)" }}
+                      title="Board view"
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode("list")}
+                      className={`rounded-md p-2 transition-all ${
+                        viewMode === "list" ? "bg-indigo-500/15 text-indigo-500" : "hover:opacity-80"
+                      }`}
+                      style={{ color: viewMode === "list" ? undefined : "var(--muted-fg)" }}
+                      title="List view"
+                    >
+                      <List className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
 
                 <button
                   onClick={toggleTheme}
@@ -163,76 +210,124 @@ export default function AppShell() {
           </header>
 
           <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-            <div className="mb-6">
-              <StatsBar {...app.stats} />
-            </div>
+            {appTab === "lectures" ? (
+              <>
+                <div className="mb-6">
+                  <StatsBar {...app.stats} />
+                </div>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
-              <aside className="space-y-4">
-                <SubjectManager
-                  subjects={app.subjects}
-                  onAdd={app.addSubject}
-                  onUpdate={app.updateSubject}
-                  onDelete={app.deleteSubject}
-                  lectureCountBySubject={lectureCountBySubject}
-                />
-                <AddLectureForm subjects={app.subjects} onAdd={app.addLecture} />
-              </aside>
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+                  <aside className="space-y-4">
+                    <SubjectManager
+                      subjects={app.subjects}
+                      onAdd={app.addSubject}
+                      onUpdate={app.updateSubject}
+                      onDelete={app.deleteSubject}
+                      lectureCountBySubject={lectureCountBySubject}
+                    />
+                    <AddLectureForm subjects={app.subjects} onAdd={app.addLecture} />
+                  </aside>
 
-              <section className="space-y-4">
-                <SearchFilter
-                  search={search}
-                  onSearchChange={setSearch}
-                  statusFilter={statusFilter}
-                  onStatusFilterChange={setStatusFilter}
-                  priorityFilter={priorityFilter}
-                  onPriorityFilterChange={setPriorityFilter}
-                  subjectFilter={subjectFilter}
-                  onSubjectFilterChange={setSubjectFilter}
-                  subjects={app.subjects}
-                />
+                  <section className="space-y-4">
+                    <SearchFilter
+                      search={search}
+                      onSearchChange={setSearch}
+                      statusFilter={statusFilter}
+                      onStatusFilterChange={setStatusFilter}
+                      priorityFilter={priorityFilter}
+                      onPriorityFilterChange={setPriorityFilter}
+                      subjectFilter={subjectFilter}
+                      onSubjectFilterChange={setSubjectFilter}
+                      subjects={app.subjects}
+                    />
 
-                {viewMode === "kanban" ? (
-                  <KanbanView
-                    lectures={filtered}
-                    subjects={app.subjects}
-                    getSubject={app.getSubject}
-                    onSelect={setSelectedLecture}
-                    onMove={app.moveLecture}
-                    onDelete={app.deleteLecture}
-                  />
-                ) : (
-                  <div className="space-y-2">
-                    <AnimatePresence>
-                      {filtered.map((lecture) => (
-                        <LectureCard
-                          key={lecture.id}
-                          lecture={lecture}
-                          subject={app.getSubject(lecture.subjectId)}
-                          onSelect={setSelectedLecture}
-                          onMove={app.moveLecture}
-                          onDelete={app.deleteLecture}
-                        />
-                      ))}
-                    </AnimatePresence>
-                    {filtered.length === 0 && (
-                      <div className="py-16 text-center">
-                        <BookOpen className="mx-auto mb-3 h-10 w-10 text-zinc-800" />
-                        <p className="text-sm text-zinc-600">
-                          {app.lectures.length === 0
-                            ? "No lectures yet. Add a subject and your first lecture to get started."
-                            : "No lectures match your filters."}
-                        </p>
+                    {viewMode === "kanban" ? (
+                      <KanbanView
+                        lectures={filtered}
+                        subjects={app.subjects}
+                        getSubject={app.getSubject}
+                        onSelect={setSelectedLecture}
+                        onMove={app.moveLecture}
+                        onDelete={app.deleteLecture}
+                      />
+                    ) : (
+                      <div className="space-y-2">
+                        <AnimatePresence>
+                          {filtered.map((lecture) => (
+                            <LectureCard
+                              key={lecture.id}
+                              lecture={lecture}
+                              subject={app.getSubject(lecture.subjectId)}
+                              onSelect={setSelectedLecture}
+                              onMove={app.moveLecture}
+                              onDelete={app.deleteLecture}
+                            />
+                          ))}
+                        </AnimatePresence>
+                        {filtered.length === 0 && (
+                          <div className="py-16 text-center">
+                            <BookOpen className="mx-auto mb-3 h-10 w-10 text-zinc-800" />
+                            <p className="text-sm text-zinc-600">
+                              {app.lectures.length === 0
+                                ? "No lectures yet. Add a subject and your first lecture to get started."
+                                : "No lectures match your filters."}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
-                )}
-              </section>
-            </div>
+                  </section>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-6">
+                  <ExamStatsBar {...examState.examStats} />
+                </div>
+
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+                  <aside>
+                    <ExamList
+                      exams={examState.exams}
+                      selectedExamId={selectedExam?.id ?? null}
+                      onSelect={setSelectedExam}
+                      onAdd={examState.addExam}
+                      onDelete={examState.deleteExam}
+                      topicProgress={topicProgress}
+                    />
+                  </aside>
+
+                  <section>
+                    {examState.exams.length === 0 ? (
+                      <div className="py-16 text-center">
+                        <GraduationCap className="mx-auto mb-3 h-10 w-10 text-zinc-800" />
+                        <p className="text-sm text-zinc-600">
+                          No exams yet. Add one from the sidebar to start tracking.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <AnimatePresence>
+                          {examState.exams.map((exam) => (
+                            <ExamCard
+                              key={exam.id}
+                              exam={exam}
+                              topics={examState.getTopicsForExam(exam.id)}
+                              practiceTests={examState.getTestsForExam(exam.id)}
+                              onSelect={setSelectedExam}
+                            />
+                          ))}
+                        </AnimatePresence>
+                      </div>
+                    )}
+                  </section>
+                </div>
+              </>
+            )}
           </main>
 
           <AnimatePresence>
-            {currentSelectedLecture && (
+            {currentSelectedLecture && appTab === "lectures" && (
               <LectureDetail
                 lecture={currentSelectedLecture}
                 subject={app.getSubject(currentSelectedLecture.subjectId)}
@@ -241,6 +336,21 @@ export default function AppShell() {
                 onMove={app.moveLecture}
                 onDelete={app.deleteLecture}
                 onClose={() => setSelectedLecture(null)}
+              />
+            )}
+            {currentSelectedExam && appTab === "exams" && (
+              <ExamDetail
+                exam={currentSelectedExam}
+                topics={examState.getTopicsForExam(currentSelectedExam.id)}
+                practiceTests={examState.getTestsForExam(currentSelectedExam.id)}
+                onUpdateExam={examState.updateExam}
+                onDeleteExam={examState.deleteExam}
+                onAddTopic={examState.addTopic}
+                onToggleTopic={examState.toggleTopic}
+                onDeleteTopic={examState.deleteTopic}
+                onAddPracticeTest={examState.addPracticeTest}
+                onDeletePracticeTest={examState.deletePracticeTest}
+                onClose={() => setSelectedExam(null)}
               />
             )}
           </AnimatePresence>

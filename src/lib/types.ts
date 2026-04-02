@@ -27,3 +27,30 @@ export interface AppState {
   subjects: Subject[];
   lectures: Lecture[];
 }
+
+export interface Exam {
+  id: string;
+  name: string;
+  examDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExamTopic {
+  id: string;
+  examId: string;
+  name: string;
+  revised: boolean;
+  createdAt: string;
+}
+
+export interface PracticeTest {
+  id: string;
+  examId: string;
+  title: string;
+  score: number | null;
+  maxScore: number | null;
+  notes: string;
+  takenAt: string;
+  createdAt: string;
+}
