@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import {
-  X, Save, Calendar, Plus, Trash2, CheckSquare, Square, ClipboardList, GraduationCap,
+  X, Save, Calendar, Plus, Trash2, CheckSquare, Square, ClipboardList, GraduationCap, CalendarRange,
 } from "lucide-react";
 import { Exam, ExamTopic, PracticeTest } from "@/lib/types";
+import { WEEK_NUMBERS, formatWeekTitle, parseWeekNumber } from "@/lib/weeks";
 
 interface ExamDetailProps {
   exam: Exam;
@@ -42,6 +43,8 @@ export default function ExamDetail({
   const [hasChanges, setHasChanges] = useState(false);
 
   const [newTopic, setNewTopic] = useState("");
+  const [showWeekPicker, setShowWeekPicker] = useState(false);
+  const [selectedWeeks, setSelectedWeeks] = useState<Set<number>>(new Set());
   const [showTestForm, setShowTestForm] = useState(false);
   const [testTitle, setTestTitle] = useState("");
   const [testScore, setTestScore] = useState("");
@@ -65,6 +68,29 @@ export default function ExamDetail({
     if (!newTopic.trim()) return;
     onAddTopic(exam.id, newTopic.trim());
     setNewTopic("");
+  };
+
+  const existingWeekNumbers = new Set(
+    topics.map((t) => parseWeekNumber(t.name)).filter((n): n is number => n !== null)
+  );
+
+  const toggleWeek = (w: number) => {
+    if (existingWeekNumbers.has(w)) return;
+    setSelectedWeeks((prev) => {
+      const next = new Set(prev);
+      if (next.has(w)) next.delete(w);
+      else next.add(w);
+      return next;
+    });
+  };
+
+  const handleAddWeeks = () => {
+    const sorted = Array.from(selectedWeeks).sort((a, b) => a - b);
+    for (const w of sorted) {
+      onAddTopic(exam.id, formatWeekTitle(w));
+    }
+    setSelectedWeeks(new Set());
+    setShowWeekPicker(false);
   };
 
   const handleAddTest = () => {
@@ -222,6 +248,74 @@ export default function ExamDetail({
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>
+            </div>
+
+            <div className="mt-2">
+              {!showWeekPicker ? (
+                <button
+                  onClick={() => setShowWeekPicker(true)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-indigo-400 transition-colors hover:text-indigo-300"
+                >
+                  <CalendarRange className="h-3.5 w-3.5" />
+                  Add Weeks
+                </button>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  className="overflow-hidden rounded-xl border p-3"
+                  style={{ background: "var(--surface-hover)", borderColor: "var(--border-color)" }}
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-medium" style={labelStyle}>Select weeks</span>
+                    <button
+                      onClick={() => { setShowWeekPicker(false); setSelectedWeeks(new Set()); }}
+                      className="rounded-md p-0.5"
+                      style={{ color: "var(--muted-fg)" }}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {WEEK_NUMBERS.map((w) => {
+                      const alreadyExists = existingWeekNumbers.has(w);
+                      const isSelected = selectedWeeks.has(w);
+                      return (
+                        <button
+                          key={w}
+                          onClick={() => toggleWeek(w)}
+                          disabled={alreadyExists}
+                          className={`rounded-lg border px-2 py-1.5 text-xs font-medium transition-all ${
+                            alreadyExists
+                              ? "opacity-40"
+                              : isSelected
+                              ? "border-indigo-500/40 bg-indigo-500/15 text-indigo-400"
+                              : ""
+                          }`}
+                          style={
+                            !alreadyExists && !isSelected
+                              ? { borderColor: "var(--border-color)", background: "var(--surface)", color: "var(--muted-fg)" }
+                              : alreadyExists
+                              ? { borderColor: "var(--border-color)", background: "var(--surface)", color: "var(--muted-fg)" }
+                              : undefined
+                          }
+                        >
+                          {alreadyExists ? `W${w} ✓` : `Week ${w}`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selectedWeeks.size > 0 && (
+                    <button
+                      onClick={handleAddWeeks}
+                      className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-indigo-600"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add {selectedWeeks.size} week{selectedWeeks.size !== 1 ? "s" : ""}
+                    </button>
+                  )}
+                </motion.div>
+              )}
             </div>
           </div>
 
