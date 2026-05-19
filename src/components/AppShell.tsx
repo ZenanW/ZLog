@@ -225,7 +225,7 @@ export default function AppShell() {
                       onDelete={app.deleteSubject}
                       lectureCountBySubject={lectureCountBySubject}
                     />
-                    <AddLectureForm subjects={app.subjects} onAdd={app.addLecture} />
+                    <AddLectureForm subjects={app.subjects} lectures={app.lectures} onAdd={app.addLecture} />
                   </aside>
 
                   <section className="space-y-4">

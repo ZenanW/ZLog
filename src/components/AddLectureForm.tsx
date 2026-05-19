@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useMemo } from "react";
+import { motion } from "framer-motion";
 import { Plus, X, Check, Tag } from "lucide-react";
-import { Subject, Priority } from "@/lib/types";
+import { Subject, Priority, Lecture } from "@/lib/types";
+import { WEEK_NUMBERS, formatWeekTitle, parseWeekNumber } from "@/lib/weeks";
+import SubjectBadge from "./SubjectBadge";
 
 interface AddLectureFormProps {
   subjects: Subject[];
+  lectures: Lecture[];
   onAdd: (data: {
     subjectId: string;
     title: string;
@@ -18,10 +21,10 @@ interface AddLectureFormProps {
   }) => void;
 }
 
-export default function AddLectureForm({ subjects, onAdd }: AddLectureFormProps) {
+export default function AddLectureForm({ subjects, lectures, onAdd }: AddLectureFormProps) {
   const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [subjectId, setSubjectId] = useState("");
+  const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<Set<string>>(new Set());
   const [priority, setPriority] = useState<Priority>("medium");
   const [duration, setDuration] = useState("");
   const [lectureDate, setLectureDate] = useState("");
@@ -30,8 +33,8 @@ export default function AddLectureForm({ subjects, onAdd }: AddLectureFormProps)
   const [notes, setNotes] = useState("");
 
   const reset = () => {
-    setTitle("");
-    setSubjectId("");
+    setSelectedWeek(null);
+    setSelectedSubjectIds(new Set());
     setPriority("medium");
     setDuration("");
     setLectureDate("");
@@ -39,6 +42,25 @@ export default function AddLectureForm({ subjects, onAdd }: AddLectureFormProps)
     setTags([]);
     setNotes("");
     setOpen(false);
+  };
+
+  const existingSubjectIdsForWeek = useMemo(() => {
+    if (selectedWeek === null) return new Set<string>();
+    return new Set(
+      lectures
+        .filter((l) => parseWeekNumber(l.title) === selectedWeek)
+        .map((l) => l.subjectId)
+    );
+  }, [lectures, selectedWeek]);
+
+  const toggleSubject = (id: string) => {
+    if (existingSubjectIdsForWeek.has(id)) return;
+    setSelectedSubjectIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const addTag = () => {
@@ -49,17 +71,26 @@ export default function AddLectureForm({ subjects, onAdd }: AddLectureFormProps)
     }
   };
 
+  const newSubjectCount = selectedSubjectIds.size;
+  const allTakenForWeek =
+    selectedWeek !== null &&
+    subjects.length > 0 &&
+    subjects.every((s) => existingSubjectIdsForWeek.has(s.id));
+
   const handleSubmit = () => {
-    if (!title.trim() || !subjectId) return;
-    onAdd({
-      subjectId,
-      title: title.trim(),
-      notes: notes.trim(),
-      priority,
-      duration: duration ? parseInt(duration) : null,
-      lectureDate: lectureDate || null,
-      tags,
-    });
+    if (selectedWeek === null || newSubjectCount === 0) return;
+    const title = formatWeekTitle(selectedWeek);
+    for (const subjectId of selectedSubjectIds) {
+      onAdd({
+        subjectId,
+        title,
+        notes: notes.trim(),
+        priority,
+        duration: duration ? parseInt(duration) : null,
+        lectureDate: lectureDate || null,
+        tags,
+      });
+    }
     reset();
   };
 
@@ -94,26 +125,65 @@ export default function AddLectureForm({ subjects, onAdd }: AddLectureFormProps)
       </div>
 
       <div className="space-y-3">
-        <input
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Lecture title..."
-          className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
-          style={{ background: "var(--input-bg)", borderColor: "var(--border-color)", color: "var(--fg)" }}
-        />
+        <div>
+          <label className="mb-1.5 block text-xs" style={{ color: "var(--muted-fg)" }}>Week</label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {WEEK_NUMBERS.map((w) => (
+              <button
+                key={w}
+                onClick={() => {
+                  setSelectedWeek(w);
+                  setSelectedSubjectIds(new Set());
+                }}
+                className={`rounded-lg border px-2 py-1.5 text-xs font-medium transition-all ${
+                  selectedWeek === w
+                    ? "border-indigo-500/40 bg-indigo-500/15 text-indigo-400"
+                    : ""
+                }`}
+                style={
+                  selectedWeek !== w
+                    ? { borderColor: "var(--border-color)", background: "var(--surface)", color: "var(--muted-fg)" }
+                    : undefined
+                }
+              >
+                Week {w}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        <select
-          value={subjectId}
-          onChange={(e) => setSubjectId(e.target.value)}
-          className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
-          style={{ background: "var(--input-bg)", borderColor: "var(--border-color)", color: "var(--fg)" }}
-        >
-          <option value="">Select subject...</option>
-          {subjects.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
+        {selectedWeek !== null && (
+          <div>
+            <label className="mb-1.5 block text-xs" style={{ color: "var(--muted-fg)" }}>Subjects</label>
+            {subjects.length === 0 ? (
+              <p className="text-xs" style={{ color: "var(--card-text-secondary)" }}>
+                Add subjects in the sidebar first.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {subjects.map((s) => {
+                  const alreadyExists = existingSubjectIdsForWeek.has(s.id);
+                  const isSelected = selectedSubjectIds.has(s.id);
+                  return (
+                    <div key={s.id} className={alreadyExists ? "opacity-40" : ""}>
+                      <SubjectBadge
+                        name={alreadyExists ? `${s.name} ✓` : s.name}
+                        color={s.color}
+                        active={isSelected}
+                        onClick={() => toggleSubject(s.id)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {allTakenForWeek && (
+              <p className="mt-1.5 text-[11px]" style={{ color: "var(--card-text-secondary)" }}>
+                All subjects added for this week.
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="flex gap-3">
           <div className="flex-1">
@@ -211,11 +281,13 @@ export default function AddLectureForm({ subjects, onAdd }: AddLectureFormProps)
         <div className="flex gap-2">
           <button
             onClick={handleSubmit}
-            disabled={!title.trim() || !subjectId}
+            disabled={selectedWeek === null || newSubjectCount === 0}
             className="flex items-center gap-1.5 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600 disabled:opacity-40"
           >
             <Check className="h-4 w-4" />
-            Add Lecture
+            {newSubjectCount > 0
+              ? `Add ${newSubjectCount} lecture${newSubjectCount !== 1 ? "s" : ""}`
+              : "Add Lecture"}
           </button>
           <button
             onClick={reset}
