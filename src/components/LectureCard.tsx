@@ -1,14 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { format } from "date-fns";
 import {
   ChevronRight,
   Clock,
   ArrowRight,
   ArrowLeft,
   Trash2,
-  Calendar,
   AlertTriangle,
 } from "lucide-react";
 import { Lecture, LectureStatus, Subject } from "@/lib/types";
@@ -63,12 +61,6 @@ export default function LectureCard({ lecture, subject, onSelect, onMove, onDele
               <span className="flex items-center gap-0.5">
                 <Clock className="h-3 w-3" />
                 {lecture.duration}m
-              </span>
-            )}
-            {lecture.lectureDate && (
-              <span className="flex items-center gap-0.5">
-                <Calendar className="h-3 w-3" />
-                {format(new Date(lecture.lectureDate), "MMM d")}
               </span>
             )}
           </div>

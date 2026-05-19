@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import {
-  X, Save, Clock, Calendar, ArrowRight, ArrowLeft, Tag, Trash2,
+  X, Save, Clock, ArrowRight, ArrowLeft, Tag, Trash2,
 } from "lucide-react";
 import { Lecture, LectureStatus, Priority, Subject } from "@/lib/types";
 
@@ -38,7 +38,6 @@ export default function LectureDetail({ lecture, subject, subjects, onUpdate, on
   const [notes, setNotes] = useState(lecture.notes);
   const [priority, setPriority] = useState<Priority>(lecture.priority);
   const [duration, setDuration] = useState(lecture.duration?.toString() ?? "");
-  const [lectureDate, setLectureDate] = useState(lecture.lectureDate ?? "");
   const [subjectId, setSubjectId] = useState(lecture.subjectId);
   const [tags, setTags] = useState<string[]>(lecture.tags);
   const [tagInput, setTagInput] = useState("");
@@ -48,16 +47,16 @@ export default function LectureDetail({ lecture, subject, subjects, onUpdate, on
   useEffect(() => {
     const changed =
       title !== lecture.title || notes !== lecture.notes || priority !== lecture.priority ||
-      duration !== (lecture.duration?.toString() ?? "") || lectureDate !== (lecture.lectureDate ?? "") ||
+      duration !== (lecture.duration?.toString() ?? "") ||
       subjectId !== lecture.subjectId || JSON.stringify(tags) !== JSON.stringify(lecture.tags);
     setHasChanges(changed);
-  }, [title, notes, priority, duration, lectureDate, subjectId, tags, lecture]);
+  }, [title, notes, priority, duration, subjectId, tags, lecture]);
 
   const handleSave = () => {
     onUpdate(lecture.id, {
       title: title.trim(), notes: notes.trim(), priority,
       duration: duration ? parseInt(duration) : null,
-      lectureDate: lectureDate || null, subjectId, tags,
+      subjectId, tags,
     });
     setHasChanges(false);
   };
@@ -158,26 +157,15 @@ export default function LectureDetail({ lecture, subject, subjects, onUpdate, on
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 flex items-center gap-1 text-xs" style={labelStyle}>
-                <Clock className="h-3 w-3" /> Duration (min)
-              </label>
-              <input value={duration} onChange={(e) => setDuration(e.target.value.replace(/\D/g, ""))}
-                placeholder="e.g. 60"
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
-                style={inputStyle}
-              />
-            </div>
-            <div>
-              <label className="mb-1 flex items-center gap-1 text-xs" style={labelStyle}>
-                <Calendar className="h-3 w-3" /> Lecture Date
-              </label>
-              <input type="date" value={lectureDate} onChange={(e) => setLectureDate(e.target.value)}
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
-                style={inputStyle}
-              />
-            </div>
+          <div>
+            <label className="mb-1 flex items-center gap-1 text-xs" style={labelStyle}>
+              <Clock className="h-3 w-3" /> Duration (min)
+            </label>
+            <input value={duration} onChange={(e) => setDuration(e.target.value.replace(/\D/g, ""))}
+              placeholder="e.g. 60"
+              className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
+              style={inputStyle}
+            />
           </div>
 
           <div>

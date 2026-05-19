@@ -27,7 +27,6 @@ export default function AddLectureForm({ subjects, lectures, onAdd }: AddLecture
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<Set<string>>(new Set());
   const [priority, setPriority] = useState<Priority>("medium");
   const [duration, setDuration] = useState("");
-  const [lectureDate, setLectureDate] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
@@ -37,7 +36,6 @@ export default function AddLectureForm({ subjects, lectures, onAdd }: AddLecture
     setSelectedSubjectIds(new Set());
     setPriority("medium");
     setDuration("");
-    setLectureDate("");
     setTagInput("");
     setTags([]);
     setNotes("");
@@ -87,7 +85,6 @@ export default function AddLectureForm({ subjects, lectures, onAdd }: AddLecture
         notes: notes.trim(),
         priority,
         duration: duration ? parseInt(duration) : null,
-        lectureDate: lectureDate || null,
         tags,
       });
     }
@@ -220,17 +217,6 @@ export default function AddLectureForm({ subjects, lectures, onAdd }: AddLecture
               style={{ background: "var(--input-bg)", borderColor: "var(--border-color)", color: "var(--fg)" }}
             />
           </div>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-xs" style={{ color: "var(--muted-fg)" }}>Lecture Date</label>
-          <input
-            type="date"
-            value={lectureDate}
-            onChange={(e) => setLectureDate(e.target.value)}
-            className="w-full rounded-lg border px-3 py-1.5 text-xs outline-none focus:border-indigo-500/50"
-            style={{ background: "var(--input-bg)", borderColor: "var(--border-color)", color: "var(--fg)" }}
-          />
         </div>
 
         <div>
