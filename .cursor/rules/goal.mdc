@@ -1,0 +1,16 @@
+---
+description: Points the agent to the project's north-star goal file
+alwaysApply: true
+---
+
+# North Star
+
+Before starting any work, read `GOAL.md` in the project root. It contains:
+
+- The current north-star goal and definition of done
+- Hard constraints (stack, AI provider, storage, security, git)
+- An ordered backlog -- work on only the top unchecked item
+- A loop protocol for how to execute each run
+- A "Current State" section to update after each run
+
+Always follow the loop protocol and constraints defined there.

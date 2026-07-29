@@ -15,14 +15,11 @@ export default function SubjectBadge({ name, color, size = "sm", onClick, active
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-full border font-medium transition-all ${sizeClasses}`}
-      style={
-        active
-          ? { borderColor: color + "40", backgroundColor: color + "15", color: "var(--fg)" }
-          : { borderColor: "var(--border-color)", background: "var(--surface)", color: "var(--muted-fg)" }
-      }
+      className={`inline-flex items-center gap-1.5 border font-medium transition-all ${sizeClasses} ${
+        active ? "chip-selected" : "chip"
+      }`}
     >
-      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+      <span className="h-2 w-2 shrink-0" style={{ backgroundColor: color }} />
       {name}
     </button>
   );

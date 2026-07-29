@@ -28,6 +28,24 @@ export interface AppState {
   lectures: Lecture[];
 }
 
+export const PDF_KINDS = ["lecture_slides", "tutorial_sheet"] as const;
+
+export type PdfKind = (typeof PDF_KINDS)[number];
+
+export interface LecturePdf {
+  id: string;
+  lectureId: string;
+  kind: PdfKind;
+  name: string;
+  size: number;
+  summary: string | null;
+  priorityRecommendation: Priority | null;
+  priorityReason: string | null;
+  difficulty: number | null;
+  analyzedAt: string | null;
+  createdAt: string;
+}
+
 export interface Exam {
   id: string;
   name: string;

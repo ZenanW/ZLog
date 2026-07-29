@@ -15,45 +15,37 @@ export default function AuthGuard({ user, loading, onSignIn, children }: AuthGua
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600">
-          <BookOpen className="h-7 w-7 text-white" />
-        </div>
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-t-indigo-500" style={{ borderColor: "var(--border-color)", borderTopColor: "#6366f1" }} />
-        <p className="text-sm" style={{ color: "var(--muted-fg)" }}>Loading...</p>
+        <BookOpen className="h-10 w-10" style={{ color: "var(--muted-foreground)" }} />
+        <div
+          className="h-8 w-8 animate-spin rounded-full border-2"
+          style={{ borderColor: "var(--border)", borderTopColor: "var(--foreground)" }}
+        />
+        <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>Loading...</p>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-8 px-4">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-8 px-4 py-20">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="flex flex-col items-center gap-6"
+          className="flex max-w-sm flex-col items-center gap-8"
         >
-          <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/20">
-            <BookOpen className="h-10 w-10 text-white" />
-          </div>
-
           <div className="text-center">
-            <h1 className="text-3xl font-bold" style={{ color: "var(--fg)" }}>Backlog Track</h1>
-            <p className="mt-2 text-sm" style={{ color: "var(--muted-fg)" }}>
+            <h1 className="font-display text-5xl leading-tight" style={{ color: "var(--foreground)" }}>
+              Backlog Track
+            </h1>
+            <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
               Keep track of your lectures, take notes, and stay on top of your studies.
             </p>
           </div>
 
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+          <button
             onClick={onSignIn}
-            className="flex items-center gap-3 rounded-xl px-6 py-3 text-sm font-medium backdrop-blur-sm transition-all hover:shadow-md"
-            style={{
-              border: "1px solid var(--border-color)",
-              background: "var(--surface)",
-              color: "var(--fg)",
-            }}
+            className="btn btn-primary flex w-full items-center justify-center gap-3 px-6 py-3"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
@@ -62,10 +54,10 @@ export default function AuthGuard({ user, loading, onSignIn, children }: AuthGua
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
             </svg>
             Sign in with Google
-          </motion.button>
+          </button>
         </motion.div>
 
-        <p className="text-xs" style={{ color: "var(--muted-fg)" }}>
+        <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
           Your data is synced to the cloud and accessible from any device.
         </p>
       </div>

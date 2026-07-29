@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
+import { X, Save, Trash2, Sparkles } from "lucide-react";
+import { Lecture, LectureStatus, LecturePdf, Priority, Subject } from "@/lib/types";
 import {
-  X, Save, Clock, ArrowRight, ArrowLeft, Tag, Trash2,
-} from "lucide-react";
-import { Lecture, LectureStatus, Priority, Subject } from "@/lib/types";
+  btnIcon, btnPrimary, input, microLabel, priorityChip, statusChip,
+} from "@/lib/ui";
+import LecturePdfs from "@/components/LecturePdfs";
 
 interface LectureDetailProps {
   lecture: Lecture;
   subject: Subject | undefined;
   subjects: Subject[];
+  idToken: string | null;
   onUpdate: (id: string, updates: Partial<Omit<Lecture, "id" | "createdAt">>) => void;
   onMove: (id: string, status: LectureStatus) => void;
   onDelete: (id: string) => void;
@@ -22,229 +25,193 @@ const statusLabels: Record<LectureStatus, string> = {
   backlog: "Backlog", in_progress: "In Progress", completed: "Completed",
 };
 
-const statusColors: Record<LectureStatus, string> = {
-  backlog: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  in_progress: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  completed: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-};
-
 const statusFlow: LectureStatus[] = ["backlog", "in_progress", "completed"];
 
-const inputStyle = { background: "var(--input-bg)", borderColor: "var(--border-color)", color: "var(--fg)" };
-const labelStyle = { color: "var(--muted-fg)" };
+const statusSegmentBg: Record<LectureStatus, string> = {
+  backlog: "color-mix(in oklch, var(--quiet) 18%, transparent)",
+  in_progress: "color-mix(in oklch, var(--active) 18%, transparent)",
+  completed: "color-mix(in oklch, var(--active) 18%, transparent)",
+};
 
-export default function LectureDetail({ lecture, subject, subjects, onUpdate, onMove, onDelete, onClose }: LectureDetailProps) {
+const statusSegmentFg: Record<LectureStatus, string> = {
+  backlog: "var(--quiet)",
+  in_progress: "var(--active)",
+  completed: "var(--active)",
+};
+
+export default function LectureDetail({ lecture, subject, subjects, idToken, onUpdate, onMove, onDelete, onClose }: LectureDetailProps) {
   const [title, setTitle] = useState(lecture.title);
-  const [notes, setNotes] = useState(lecture.notes);
   const [priority, setPriority] = useState<Priority>(lecture.priority);
-  const [duration, setDuration] = useState(lecture.duration?.toString() ?? "");
   const [subjectId, setSubjectId] = useState(lecture.subjectId);
-  const [tags, setTags] = useState<string[]>(lecture.tags);
-  const [tagInput, setTagInput] = useState("");
-  const [hasChanges, setHasChanges] = useState(false);
-  const notesRef = useRef<HTMLTextAreaElement>(null);
+  const [pdfs, setPdfs] = useState<LecturePdf[]>([]);
 
-  useEffect(() => {
-    const changed =
-      title !== lecture.title || notes !== lecture.notes || priority !== lecture.priority ||
-      duration !== (lecture.duration?.toString() ?? "") ||
-      subjectId !== lecture.subjectId || JSON.stringify(tags) !== JSON.stringify(lecture.tags);
-    setHasChanges(changed);
-  }, [title, notes, priority, duration, subjectId, tags, lecture]);
+  const hasChanges =
+    title !== lecture.title || priority !== lecture.priority || subjectId !== lecture.subjectId;
 
   const handleSave = () => {
-    onUpdate(lecture.id, {
-      title: title.trim(), notes: notes.trim(), priority,
-      duration: duration ? parseInt(duration) : null,
-      subjectId, tags,
-    });
-    setHasChanges(false);
-  };
-
-  const addTag = () => {
-    const t = tagInput.trim().toLowerCase();
-    if (t && !tags.includes(t)) { setTags([...tags, t]); setTagInput(""); }
+    onUpdate(lecture.id, { title: title.trim(), priority, subjectId });
   };
 
   const currentIdx = statusFlow.indexOf(lecture.status);
-
-  const autoResizeNotes = () => {
-    const el = notesRef.current;
-    if (el) { el.style.height = "auto"; el.style.height = Math.max(200, el.scrollHeight) + "px"; }
-  };
-
-  useEffect(() => { autoResizeNotes(); }, [notes]);
+  const analyzed = pdfs.filter((p) => p.analyzedAt && p.summary);
 
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-start justify-end backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "var(--overlay-bg)" }}
       onClick={onClose}
     >
       <motion.div
-        initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
-        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        initial={{ opacity: 0, scale: 0.98, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.98, y: 12 }}
+        transition={{ type: "spring", damping: 28, stiffness: 320 }}
         onClick={(e) => e.stopPropagation()}
-        className="h-full w-full max-w-lg overflow-y-auto border-l p-6"
-        style={{ background: "var(--detail-bg)", borderColor: "var(--border-color)" }}
+        className="panel flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden"
+        style={{ background: "var(--detail-bg)" }}
       >
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusColors[lecture.status]}`}>
+        <div className="flex items-center justify-between border-b px-6 py-4" style={{ borderColor: "color-mix(in oklch, var(--border) 60%, transparent)" }}>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className={`shrink-0 px-2.5 py-0.5 text-xs font-medium ${statusChip(lecture.status)}`}>
               {statusLabels[lecture.status]}
             </span>
             {subject && (
-              <span className="flex items-center gap-1.5 text-xs" style={labelStyle}>
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: subject.color }} />
+              <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--muted-foreground)" }}>
+                <span className="h-2 w-2 shrink-0" style={{ backgroundColor: subject.color }} />
                 {subject.name}
               </span>
             )}
           </div>
-          <button onClick={onClose} className="rounded-md p-1" style={{ color: "var(--muted-fg)" }}>
+          <button onClick={onClose} className={btnIcon}>
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="space-y-5">
-          <input
-            value={title} onChange={(e) => setTitle(e.target.value)}
-            className="w-full bg-transparent text-xl font-semibold outline-none"
-            style={{ color: "var(--fg)" }}
-            placeholder="Lecture title..."
-          />
-
-          <div className="flex items-center gap-2">
-            {statusFlow.map((status) => (
-              <button
-                key={status} onClick={() => onMove(lecture.id, status)}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium capitalize transition-all ${
-                  lecture.status === status ? statusColors[status] : ""
-                }`}
-                style={lecture.status !== status ? { borderColor: "var(--border-color)", color: "var(--muted-fg)" } : undefined}
-              >
-                {statusLabels[status]}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs" style={labelStyle}>Subject</label>
-              <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)}
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
-                style={inputStyle}
-              >
-                {subjects.map((s) => (<option key={s.id} value={s.id}>{s.name}</option>))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs" style={labelStyle}>Priority</label>
-              <div className="flex gap-1">
-                {(["low", "medium", "high"] as Priority[]).map((p) => (
-                  <button key={p} onClick={() => setPriority(p)}
-                    className={`flex-1 rounded-lg border px-2 py-2 text-xs font-medium capitalize transition-all ${
-                      priority === p
-                        ? p === "high" ? "border-red-500/30 bg-red-500/10 text-red-400"
-                        : p === "medium" ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
-                        : "border-zinc-500/30 bg-zinc-500/10 text-zinc-400"
-                        : ""
-                    }`}
-                    style={priority !== p ? { borderColor: "var(--border-color)", background: "var(--surface)", color: "var(--muted-fg)" } : undefined}
-                  >{p}</button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1 flex items-center gap-1 text-xs" style={labelStyle}>
-              <Clock className="h-3 w-3" /> Duration (min)
-            </label>
-            <input value={duration} onChange={(e) => setDuration(e.target.value.replace(/\D/g, ""))}
-              placeholder="e.g. 60"
-              className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
-              style={inputStyle}
+        <div className="overflow-y-auto p-6">
+          <div className="space-y-5">
+            <input
+              value={title} onChange={(e) => setTitle(e.target.value)}
+              className="font-display w-full bg-transparent text-2xl outline-none"
+              style={{ color: "var(--foreground)" }}
+              placeholder="Lecture title..."
             />
-          </div>
 
-          <div>
-            <label className="mb-1 flex items-center gap-1 text-xs" style={labelStyle}>
-              <Tag className="h-3 w-3" /> Tags
-            </label>
-            <div className="flex gap-2">
-              <input value={tagInput} onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-                placeholder="Add tag..."
-                className="flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
-                style={inputStyle}
+            <div className="segment-track relative grid grid-cols-3 p-1">
+              <motion.div
+                className="absolute inset-y-1 segment-pill"
+                initial={false}
+                animate={{
+                  left: `calc(${currentIdx} * 100% / 3 + 0.25rem)`,
+                  width: "calc(100% / 3 - 0.5rem)",
+                  backgroundColor: statusSegmentBg[lecture.status],
+                }}
+                transition={{ type: "spring", stiffness: 380, damping: 32 }}
               />
-              <button onClick={addTag} className="rounded-lg px-3" style={{ background: "var(--surface-hover)", color: "var(--muted-fg)" }}>
-                <Tag className="h-4 w-4" />
+              {statusFlow.map((status) => {
+                const active = lecture.status === status;
+                return (
+                  <button
+                    key={status}
+                    onClick={() => onMove(lecture.id, status)}
+                    className="relative z-10 px-3 py-2 text-xs font-medium transition-colors"
+                    style={{ color: active ? statusSegmentFg[status] : "var(--muted-foreground)" }}
+                  >
+                    {statusLabels[status]}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <div className="space-y-4">
+                <div>
+                  <label className={`${microLabel} mb-1 block`}>Subject</label>
+                  <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className={input}>
+                    {subjects.map((s) => (<option key={s.id} value={s.id}>{s.name}</option>))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className={`${microLabel} mb-1 block`}>Priority</label>
+                  <div className="flex gap-1">
+                    {(["low", "medium", "high"] as Priority[]).map((p) => (
+                      <button key={p} onClick={() => setPriority(p)}
+                        className={`flex-1 border px-2 py-2 text-xs font-medium capitalize transition-all ${priorityChip(p, priority === p)}`}
+                      >{p}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <LecturePdfs lectureId={lecture.id} idToken={idToken} onPdfsChange={setPdfs} />
+              </div>
+
+              <div>
+                <label className={`${microLabel} mb-1 flex items-center gap-1`}>
+                  <Sparkles className="h-3 w-3" /> AI Summary
+                </label>
+                <div className="paper-panel min-h-[180px] p-4">
+                  {analyzed.length > 0 ? (
+                    <div className="space-y-4">
+                      {analyzed.map((pdf) => (
+                        <div key={pdf.id}>
+                          <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                            <span className="max-w-[50%] truncate text-[11px] font-semibold" style={{ color: "var(--foreground)" }} title={pdf.name}>
+                              {pdf.name}
+                            </span>
+                            {pdf.priorityRecommendation && (
+                              <span className={`px-2 py-0.5 text-[10px] font-medium capitalize ${priorityChip(pdf.priorityRecommendation, true)}`}>
+                                {pdf.priorityRecommendation} priority
+                              </span>
+                            )}
+                            {pdf.difficulty !== null && (
+                              <span className="chip px-2 py-0.5 text-[10px] font-medium">
+                                Difficulty {pdf.difficulty}/7
+                              </span>
+                            )}
+                          </div>
+                          <p className="font-display text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>{pdf.summary}</p>
+                          {pdf.priorityReason && (
+                            <p className="mt-1 text-[11px] italic leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+                              {pdf.priorityReason}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex min-h-[150px] flex-col items-center justify-center gap-2 text-center">
+                      <Sparkles className="h-5 w-5" style={{ color: "var(--muted-foreground)" }} />
+                      <p className="max-w-[26ch] text-xs italic leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+                        AI summary will be outputted here — upload a PDF and analyze it.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: "color-mix(in oklch, var(--border) 60%, transparent)" }}>
+              <div>
+                {hasChanges && (
+                  <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                    onClick={handleSave}
+                    className={btnPrimary}>
+                    <Save className="h-4 w-4" /> Save Changes
+                  </motion.button>
+                )}
+              </div>
+              <button onClick={() => { onDelete(lecture.id); onClose(); }}
+                className="btn btn-ghost flex items-center gap-1.5 text-xs btn-danger-ghost">
+                <Trash2 className="h-3.5 w-3.5" /> Delete
               </button>
             </div>
-            {tags.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {tags.map((tag) => (
-                  <span key={tag} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs"
-                    style={{ background: "var(--surface-hover)", color: "var(--muted-fg)" }}>
-                    {tag}
-                    <button onClick={() => setTags(tags.filter((t) => t !== tag))} style={{ color: "var(--card-text-secondary)" }}>
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
 
-          <div>
-            <label className="mb-1 block text-xs" style={labelStyle}>Notes</label>
-            <textarea ref={notesRef} value={notes}
-              onChange={(e) => { setNotes(e.target.value); autoResizeNotes(); }}
-              placeholder="Write your lecture notes here..."
-              className="w-full resize-none rounded-lg border px-4 py-3 text-sm leading-relaxed outline-none focus:border-indigo-500/50"
-              style={{ ...inputStyle, minHeight: "200px" }}
-            />
+            <p className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+              Created {format(new Date(lecture.createdAt), "MMM d, yyyy")} &middot; Updated{" "}
+              {format(new Date(lecture.updatedAt), "MMM d, yyyy 'at' h:mm a")}
+            </p>
           </div>
-
-          <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: "var(--border-color)" }}>
-            <div className="flex gap-2">
-              {hasChanges && (
-                <motion.button initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                  onClick={handleSave}
-                  className="flex items-center gap-1.5 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600">
-                  <Save className="h-4 w-4" /> Save Changes
-                </motion.button>
-              )}
-              <div className="flex gap-1">
-                {currentIdx > 0 && (
-                  <button onClick={() => onMove(lecture.id, statusFlow[currentIdx - 1])}
-                    className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs"
-                    style={{ background: "var(--surface-hover)", color: "var(--muted-fg)" }}>
-                    <ArrowLeft className="h-3.5 w-3.5" /> {statusLabels[statusFlow[currentIdx - 1]]}
-                  </button>
-                )}
-                {currentIdx < statusFlow.length - 1 && (
-                  <button onClick={() => onMove(lecture.id, statusFlow[currentIdx + 1])}
-                    className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs"
-                    style={{ background: "var(--surface-hover)", color: "var(--muted-fg)" }}>
-                    {statusLabels[statusFlow[currentIdx + 1]]} <ArrowRight className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
-            <button onClick={() => { onDelete(lecture.id); onClose(); }}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs transition-colors hover:bg-red-500/10 hover:text-red-400"
-              style={{ color: "var(--card-text-secondary)" }}>
-              <Trash2 className="h-3.5 w-3.5" /> Delete
-            </button>
-          </div>
-
-          <p className="text-[10px]" style={{ color: "var(--card-text-secondary)" }}>
-            Created {format(new Date(lecture.createdAt), "MMM d, yyyy")} &middot; Updated{" "}
-            {format(new Date(lecture.updatedAt), "MMM d, yyyy 'at' h:mm a")}
-          </p>
         </div>
       </motion.div>
     </motion.div>

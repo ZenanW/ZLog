@@ -268,6 +268,13 @@ export function useExamState(idToken: string | null) {
     [idToken, practiceTests]
   );
 
+  // Local-only wipe used by the semester reset after /api/backlog succeeds.
+  const clearLocal = useCallback(() => {
+    setExams([]);
+    setTopics([]);
+    setPracticeTests([]);
+  }, []);
+
   // --- Helpers ---
 
   const getTopicsForExam = useCallback(
@@ -313,6 +320,7 @@ export function useExamState(idToken: string | null) {
     addPracticeTest,
     updatePracticeTest,
     deletePracticeTest,
+    clearLocal,
     getTopicsForExam,
     getTestsForExam,
   };

@@ -5,15 +5,15 @@ import { useState, useEffect, useCallback } from "react";
 type Theme = "light" | "dark";
 
 export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>("dark");
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === "undefined") return "dark";
+    return (localStorage.getItem("backlog-track-theme") as Theme | null) ?? "dark";
+  });
 
   useEffect(() => {
-    const stored = localStorage.getItem("backlog-track-theme") as Theme | null;
-    const initial = stored ?? "dark";
-    setThemeState(initial);
-    document.documentElement.classList.toggle("dark", initial === "dark");
-    document.documentElement.classList.toggle("light", initial === "light");
-  }, []);
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.classList.toggle("light", theme === "light");
+  }, [theme]);
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);

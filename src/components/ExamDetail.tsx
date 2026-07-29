@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import {
@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Exam, ExamTopic, PracticeTest } from "@/lib/types";
 import { WEEK_NUMBERS, formatWeekTitle, parseWeekNumber } from "@/lib/weeks";
+import { btnIcon, btnIconDanger, btnPrimary, btnSecondary, countdownBadge, filterActive, filterInactive, input, microLabel } from "@/lib/ui";
 
 interface ExamDetailProps {
   exam: Exam;
@@ -23,9 +24,6 @@ interface ExamDetailProps {
   onClose: () => void;
 }
 
-const inputStyle = { background: "var(--input-bg)", borderColor: "var(--border-color)", color: "var(--fg)" };
-const labelStyle = { color: "var(--muted-fg)" };
-
 function daysUntil(dateStr: string | null): number | null {
   if (!dateStr) return null;
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
@@ -40,7 +38,7 @@ export default function ExamDetail({
 }: ExamDetailProps) {
   const [name, setName] = useState(exam.name);
   const [examDate, setExamDate] = useState(exam.examDate?.split("T")[0] ?? "");
-  const [hasChanges, setHasChanges] = useState(false);
+  const hasChanges = name !== exam.name || examDate !== (exam.examDate?.split("T")[0] ?? "");
 
   const [newTopic, setNewTopic] = useState("");
   const [showWeekPicker, setShowWeekPicker] = useState(false);
@@ -51,17 +49,11 @@ export default function ExamDetail({
   const [testMaxScore, setTestMaxScore] = useState("");
   const [testNotes, setTestNotes] = useState("");
 
-  useEffect(() => {
-    const changed = name !== exam.name || examDate !== (exam.examDate?.split("T")[0] ?? "");
-    setHasChanges(changed);
-  }, [name, examDate, exam]);
-
   const handleSave = () => {
     onUpdateExam(exam.id, {
       name: name.trim(),
       examDate: examDate || null,
     });
-    setHasChanges(false);
   };
 
   const handleAddTopic = () => {
@@ -114,7 +106,7 @@ export default function ExamDetail({
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-start justify-end backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-end"
       style={{ background: "var(--overlay-bg)" }}
       onClick={onClose}
     >
@@ -123,27 +115,22 @@ export default function ExamDetail({
         transition={{ type: "spring", damping: 30, stiffness: 300 }}
         onClick={(e) => e.stopPropagation()}
         className="h-full w-full max-w-lg overflow-y-auto border-l p-6"
-        style={{ background: "var(--detail-bg)", borderColor: "var(--border-color)" }}
+        style={{ background: "var(--detail-bg)", borderColor: "color-mix(in oklch, var(--border) 60%, transparent)" }}
       >
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10">
-              <GraduationCap className="h-4 w-4 text-indigo-400" />
-            </div>
-            {days !== null && (
-              <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${
-                days < 0 ? "bg-zinc-500/15 text-zinc-400"
-                : days === 0 ? "bg-red-500/15 text-red-400"
-                : days <= 3 ? "bg-red-500/15 text-red-400"
-                : days <= 7 ? "bg-amber-500/15 text-amber-500"
-                : "bg-indigo-500/10 text-indigo-400"
-              }`}>
-                {days < 0 ? "Past due" : days === 0 ? "Exam today!" : `${days} day${days !== 1 ? "s" : ""} left`}
-              </span>
-            )}
+            <GraduationCap className="h-4 w-4" style={{ color: "var(--muted-foreground)" }} />
+            {days !== null && (() => {
+              const badge = countdownBadge(days);
+              return badge ? (
+                <span className={badge.className}>
+                  {days < 0 ? "Past due" : days === 0 ? "Exam today!" : `${days} day${days !== 1 ? "s" : ""} left`}
+                </span>
+              ) : null;
+            })()}
           </div>
-          <button onClick={onClose} className="rounded-md p-1" style={{ color: "var(--muted-fg)" }}>
+          <button onClick={onClose} className={btnIcon}>
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -154,20 +141,19 @@ export default function ExamDetail({
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-transparent text-xl font-semibold outline-none"
-              style={{ color: "var(--fg)" }}
+              className="font-display w-full bg-transparent text-2xl outline-none"
+              style={{ color: "var(--foreground)" }}
               placeholder="Exam name..."
             />
             <div>
-              <label className="mb-1 flex items-center gap-1 text-xs" style={labelStyle}>
+              <label className={`${microLabel} mb-1 flex items-center gap-1`}>
                 <Calendar className="h-3 w-3" /> Exam Date
               </label>
               <input
                 type="date"
                 value={examDate}
                 onChange={(e) => setExamDate(e.target.value)}
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
-                style={inputStyle}
+                className={input}
               />
             </div>
           </div>
@@ -176,9 +162,9 @@ export default function ExamDetail({
           <div>
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>Topics</h3>
+                <h3 className="font-display text-lg" style={{ color: "var(--foreground)" }}>Topics</h3>
                 {topics.length > 0 && (
-                  <span className="rounded-md px-1.5 py-0.5 text-[10px] font-medium" style={{ background: "var(--surface-hover)", color: "var(--muted-fg)" }}>
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium" style={{ background: "var(--surface-hover)", color: "var(--muted-fg)" }}>
                     {revisedCount}/{topics.length}
                   </span>
                 )}
@@ -186,9 +172,9 @@ export default function ExamDetail({
             </div>
 
             {topics.length > 0 && (
-              <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border-color)" }}>
+              <div className="progress-track mb-3 w-full">
                 <motion.div
-                  className="h-full rounded-full bg-indigo-500"
+                  className="progress-fill"
                   animate={{ width: `${topics.length > 0 ? (revisedCount / topics.length) * 100 : 0}%` }}
                   transition={{ duration: 0.3 }}
                 />
@@ -204,7 +190,7 @@ export default function ExamDetail({
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -10 }}
-                    className="group flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors"
+                    className="group flex items-center justify-between px-2 py-1.5 transition-colors"
                     onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-hover)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
@@ -214,16 +200,15 @@ export default function ExamDetail({
                       style={{ color: topic.revised ? "var(--muted-fg)" : "var(--fg)" }}
                     >
                       {topic.revised ? (
-                        <CheckSquare className="h-4 w-4 shrink-0 text-indigo-500" />
+                        <CheckSquare className="h-4 w-4 shrink-0" style={{ color: "var(--active)" }} />
                       ) : (
-                        <Square className="h-4 w-4 shrink-0" style={{ color: "var(--muted-fg)" }} />
+                        <Square className="h-4 w-4 shrink-0" style={{ color: "var(--muted-foreground)" }} />
                       )}
                       <span className={topic.revised ? "line-through opacity-60" : ""}>{topic.name}</span>
                     </button>
                     <button
                       onClick={() => onDeleteTopic(exam.id, topic.id)}
-                      className="rounded-md p-1 opacity-0 transition-all hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
-                      style={{ color: "var(--muted-fg)" }}
+                      className={btnIconDanger + " opacity-0 transition-all group-hover:opacity-100"}
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -238,14 +223,9 @@ export default function ExamDetail({
                 onChange={(e) => setNewTopic(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") handleAddTopic(); }}
                 placeholder="Add topic..."
-                className="flex-1 rounded-lg border px-3 py-1.5 text-sm outline-none focus:border-indigo-500/50"
-                style={inputStyle}
+                className={`${input} flex-1 py-1.5`}
               />
-              <button
-                onClick={handleAddTopic}
-                disabled={!newTopic.trim()}
-                className="rounded-lg bg-indigo-500/10 px-2.5 py-1.5 text-xs font-medium text-indigo-400 transition-colors hover:bg-indigo-500/20 disabled:opacity-40"
-              >
+              <button onClick={handleAddTopic} disabled={!newTopic.trim()} className={btnSecondary}>
                 <Plus className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -254,7 +234,7 @@ export default function ExamDetail({
               {!showWeekPicker ? (
                 <button
                   onClick={() => setShowWeekPicker(true)}
-                  className="flex items-center gap-1.5 text-xs font-medium text-indigo-400 transition-colors hover:text-indigo-300"
+                  className="btn btn-ghost flex items-center gap-1.5 text-xs"
                 >
                   <CalendarRange className="h-3.5 w-3.5" />
                   Add Weeks
@@ -263,15 +243,13 @@ export default function ExamDetail({
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
-                  className="overflow-hidden rounded-xl border p-3"
-                  style={{ background: "var(--surface-hover)", borderColor: "var(--border-color)" }}
+                  className="panel-inset overflow-hidden p-3"
                 >
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-medium" style={labelStyle}>Select weeks</span>
+                    <span className={microLabel}>Select weeks</span>
                     <button
                       onClick={() => { setShowWeekPicker(false); setSelectedWeeks(new Set()); }}
-                      className="rounded-md p-0.5"
-                      style={{ color: "var(--muted-fg)" }}
+                      className={btnIcon}
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -285,20 +263,9 @@ export default function ExamDetail({
                           key={w}
                           onClick={() => toggleWeek(w)}
                           disabled={alreadyExists}
-                          className={`rounded-lg border px-2 py-1.5 text-xs font-medium transition-all ${
-                            alreadyExists
-                              ? "opacity-40"
-                              : isSelected
-                              ? "border-indigo-500/40 bg-indigo-500/15 text-indigo-400"
-                              : ""
+                          className={`border px-2 py-1.5 text-xs font-medium transition-all ${
+                            alreadyExists ? "chip opacity-40" : isSelected ? filterActive : filterInactive
                           }`}
-                          style={
-                            !alreadyExists && !isSelected
-                              ? { borderColor: "var(--border-color)", background: "var(--surface)", color: "var(--muted-fg)" }
-                              : alreadyExists
-                              ? { borderColor: "var(--border-color)", background: "var(--surface)", color: "var(--muted-fg)" }
-                              : undefined
-                          }
                         >
                           {alreadyExists ? `W${w} ✓` : `Week ${w}`}
                         </button>
@@ -306,10 +273,7 @@ export default function ExamDetail({
                     })}
                   </div>
                   {selectedWeeks.size > 0 && (
-                    <button
-                      onClick={handleAddWeeks}
-                      className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-indigo-600"
-                    >
+                    <button onClick={handleAddWeeks} className={`${btnPrimary} mt-2.5 w-full justify-center text-xs`}>
                       <Plus className="h-3.5 w-3.5" />
                       Add {selectedWeeks.size} week{selectedWeeks.size !== 1 ? "s" : ""}
                     </button>
@@ -323,18 +287,15 @@ export default function ExamDetail({
           <div>
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>Practice Tests</h3>
+                <h3 className="font-display text-lg" style={{ color: "var(--foreground)" }}>Practice Tests</h3>
                 {practiceTests.length > 0 && (
-                  <span className="rounded-md px-1.5 py-0.5 text-[10px] font-medium" style={{ background: "var(--surface-hover)", color: "var(--muted-fg)" }}>
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium" style={{ background: "var(--surface-hover)", color: "var(--muted-fg)" }}>
                     {practiceTests.length}
                   </span>
                 )}
               </div>
               {!showTestForm && (
-                <button
-                  onClick={() => setShowTestForm(true)}
-                  className="flex items-center gap-1.5 rounded-lg bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-400 transition-colors hover:bg-indigo-500/20"
-                >
+                <button onClick={() => setShowTestForm(true)} className={btnSecondary}>
                   <Plus className="h-3.5 w-3.5" />
                   Log Test
                 </button>
@@ -349,51 +310,21 @@ export default function ExamDetail({
                   exit={{ opacity: 0, height: 0 }}
                   className="mb-3 overflow-hidden"
                 >
-                  <div className="space-y-2 rounded-xl border p-3" style={{ background: "var(--surface-hover)", borderColor: "var(--border-color)" }}>
-                    <input
-                      autoFocus
-                      value={testTitle}
-                      onChange={(e) => setTestTitle(e.target.value)}
-                      placeholder="Test name..."
-                      className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
-                      style={inputStyle}
-                    />
+                  <div className="panel-inset space-y-2 p-3">
+                    <input autoFocus value={testTitle} onChange={(e) => setTestTitle(e.target.value)} placeholder="Test name..." className={input} />
                     <div className="grid grid-cols-2 gap-2">
-                      <input
-                        value={testScore}
-                        onChange={(e) => setTestScore(e.target.value.replace(/\D/g, ""))}
-                        placeholder="Score"
-                        className="rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
-                        style={inputStyle}
-                      />
-                      <input
-                        value={testMaxScore}
-                        onChange={(e) => setTestMaxScore(e.target.value.replace(/\D/g, ""))}
-                        placeholder="Max score"
-                        className="rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
-                        style={inputStyle}
-                      />
+                      <input value={testScore} onChange={(e) => setTestScore(e.target.value.replace(/\D/g, ""))} placeholder="Score" className={input} />
+                      <input value={testMaxScore} onChange={(e) => setTestMaxScore(e.target.value.replace(/\D/g, ""))} placeholder="Max score" className={input} />
                     </div>
-                    <input
-                      value={testNotes}
-                      onChange={(e) => setTestNotes(e.target.value)}
-                      placeholder="Notes (optional)..."
-                      className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
-                      style={inputStyle}
-                    />
+                    <input value={testNotes} onChange={(e) => setTestNotes(e.target.value)} placeholder="Notes (optional)..." className={input} />
                     <div className="flex gap-2">
-                      <button
-                        onClick={handleAddTest}
-                        disabled={!testTitle.trim()}
-                        className="flex items-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-indigo-600 disabled:opacity-40"
-                      >
+                      <button onClick={handleAddTest} disabled={!testTitle.trim()} className={btnPrimary}>
                         <Plus className="h-3.5 w-3.5" />
                         Add
                       </button>
                       <button
                         onClick={() => { setShowTestForm(false); setTestTitle(""); setTestScore(""); setTestMaxScore(""); setTestNotes(""); }}
-                        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
-                        style={{ background: "var(--surface-hover)", color: "var(--muted-fg)" }}
+                        className={btnSecondary}
                       >
                         Cancel
                       </button>
@@ -413,7 +344,7 @@ export default function ExamDetail({
               {practiceTests.map((test) => (
                 <div
                   key={test.id}
-                  className="group flex items-center justify-between rounded-lg px-2 py-2 transition-colors"
+                  className="group flex items-center justify-between px-2 py-2 transition-colors"
                   onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-hover)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
@@ -436,8 +367,7 @@ export default function ExamDetail({
                   </div>
                   <button
                     onClick={() => onDeletePracticeTest(exam.id, test.id)}
-                    className="rounded-md p-1 opacity-0 transition-all hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
-                    style={{ color: "var(--muted-fg)" }}
+                    className={btnIconDanger + " opacity-0 transition-all group-hover:opacity-100"}
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -447,21 +377,16 @@ export default function ExamDetail({
           </div>
 
           {/* Footer actions */}
-          <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: "var(--border-color)" }}>
+          <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: "color-mix(in oklch, var(--border) 60%, transparent)" }}>
             {hasChanges && (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                onClick={handleSave}
-                className="flex items-center gap-1.5 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600"
-              >
+              <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={handleSave} className={btnPrimary}>
                 <Save className="h-4 w-4" /> Save Changes
               </motion.button>
             )}
             {!hasChanges && <div />}
             <button
               onClick={() => { onDeleteExam(exam.id); onClose(); }}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs transition-colors hover:bg-red-500/10 hover:text-red-400"
-              style={{ color: "var(--card-text-secondary)" }}
+              className="btn btn-ghost flex items-center gap-1.5 text-xs btn-danger-ghost"
             >
               <Trash2 className="h-3.5 w-3.5" /> Delete Exam
             </button>

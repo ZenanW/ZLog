@@ -3,6 +3,7 @@
 import { AnimatePresence } from "framer-motion";
 import { ListTodo, Clock, CheckCircle2 } from "lucide-react";
 import { Lecture, LectureStatus, Subject } from "@/lib/types";
+import { microLabel } from "@/lib/ui";
 import LectureCard from "./LectureCard";
 
 interface KanbanViewProps {
@@ -14,10 +15,10 @@ interface KanbanViewProps {
   onDelete: (id: string) => void;
 }
 
-const columns: { status: LectureStatus; label: string; icon: React.ElementType; accent: string }[] = [
-  { status: "backlog", label: "Backlog", icon: ListTodo, accent: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-  { status: "in_progress", label: "In Progress", icon: Clock, accent: "text-blue-400 bg-blue-500/10 border-blue-500/20" },
-  { status: "completed", label: "Completed", icon: CheckCircle2, accent: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
+const columns: { status: LectureStatus; label: string; icon: React.ElementType }[] = [
+  { status: "backlog", label: "Backlog", icon: ListTodo },
+  { status: "in_progress", label: "In Progress", icon: Clock },
+  { status: "completed", label: "Completed", icon: CheckCircle2 },
 ];
 
 export default function KanbanView({ lectures, getSubject, onSelect, onMove, onDelete }: KanbanViewProps) {
@@ -26,13 +27,19 @@ export default function KanbanView({ lectures, getSubject, onSelect, onMove, onD
       {columns.map((col) => {
         const colLectures = lectures.filter((l) => l.status === col.status);
         return (
-          <div key={col.status} className="rounded-2xl border p-3" style={{ background: "var(--surface)", borderColor: "var(--border-color)" }}>
+          <div key={col.status} className="panel p-3">
             <div className="mb-3 flex items-center gap-2 px-1">
-              <div className={`flex h-6 w-6 items-center justify-center rounded-md border ${col.accent}`}>
+              <div
+                className="flex h-6 w-6 items-center justify-center border"
+                style={{ borderColor: "color-mix(in oklch, var(--border) 60%, transparent)", color: "var(--muted-foreground)" }}
+              >
                 <col.icon className="h-3.5 w-3.5" />
               </div>
-              <span className="text-sm font-medium" style={{ color: "var(--muted-fg)" }}>{col.label}</span>
-              <span className="ml-auto rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--surface-hover)", color: "var(--card-text-secondary)" }}>
+              <span className={microLabel}>{col.label}</span>
+              <span
+                className="ml-auto px-2 py-0.5 text-xs"
+                style={{ background: "var(--accent)", color: "var(--muted-foreground)" }}
+              >
                 {colLectures.length}
               </span>
             </div>
@@ -50,7 +57,7 @@ export default function KanbanView({ lectures, getSubject, onSelect, onMove, onD
                 ))}
               </AnimatePresence>
               {colLectures.length === 0 && (
-                <p className="py-8 text-center text-xs" style={{ color: "var(--card-text-secondary)" }}>No lectures</p>
+                <p className="py-8 text-center text-xs" style={{ color: "var(--muted-foreground)" }}>No lectures</p>
               )}
             </div>
           </div>

@@ -221,6 +221,18 @@ export function useAppState(idToken: string | null) {
     [idToken]
   );
 
+  const clearBacklog = useCallback(async (): Promise<boolean> => {
+    if (!idToken) return false;
+    try {
+      await apiFetch("/api/backlog", idToken, { method: "DELETE" });
+      setSubjects([]);
+      setLectures([]);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [idToken]);
+
   const getSubject = useCallback(
     (id: string) => subjects.find((s) => s.id === id),
     [subjects]
@@ -245,6 +257,7 @@ export function useAppState(idToken: string | null) {
     updateLecture,
     deleteLecture,
     moveLecture,
+    clearBacklog,
     getSubject,
   };
 }

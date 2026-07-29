@@ -1,0 +1,13 @@
+---
+description: API route conventions for Next.js route handlers
+globs: src/app/api/**/*.ts
+alwaysApply: false
+---
+
+# API Route Conventions
+
+- Every handler must call `verifyToken(request)` first and catch to return 401.
+- Use `getSupabase()` from `src/lib/supabase.ts` for all DB access.
+- Request body uses `camelCase`; map to `snake_case` DB columns in the insert/update.
+- Return `NextResponse.json(data)` on success, `NextResponse.json({ error }, { status })` on failure.
+- POST should return status 201. PATCH and DELETE return 200.

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Trash2, Check, GraduationCap, Calendar } from "lucide-react";
 import { Exam } from "@/lib/types";
+import { btnPrimary, btnSecondary, countdownBadge, microLabel, panel } from "@/lib/ui";
 
 interface ExamListProps {
   exams: Exam[];
@@ -20,15 +21,6 @@ function daysUntil(dateStr: string | null): number | null {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-function countdownBadge(days: number | null) {
-  if (days === null) return null;
-  if (days < 0) return { text: "Past", className: "bg-zinc-500/15 text-zinc-400" };
-  if (days === 0) return { text: "Today", className: "bg-red-500/15 text-red-400" };
-  if (days <= 3) return { text: `${days}d`, className: "bg-red-500/15 text-red-400" };
-  if (days <= 7) return { text: `${days}d`, className: "bg-amber-500/15 text-amber-500" };
-  return { text: `${days}d`, className: "bg-indigo-500/10 text-indigo-400" };
-}
-
 export default function ExamList({ exams, selectedExamId, onSelect, onAdd, onDelete, topicProgress }: ExamListProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [name, setName] = useState("");
@@ -43,14 +35,11 @@ export default function ExamList({ exams, selectedExamId, onSelect, onAdd, onDel
   };
 
   return (
-    <div className="rounded-2xl border p-5 backdrop-blur-sm" style={{ background: "var(--surface)", borderColor: "var(--border-color)" }}>
+    <div className={panel}>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--muted-fg)" }}>Exams</h2>
+        <h2 className={microLabel}>Exams</h2>
         {!isAdding && (
-          <button
-            onClick={() => setIsAdding(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-400 transition-colors hover:bg-indigo-500/20"
-          >
+          <button onClick={() => setIsAdding(true)} className="btn btn-secondary flex items-center gap-1.5">
             <Plus className="h-3.5 w-3.5" />
             Add
           </button>
@@ -65,7 +54,7 @@ export default function ExamList({ exams, selectedExamId, onSelect, onAdd, onDel
             exit={{ opacity: 0, height: 0 }}
             className="mb-3 overflow-hidden"
           >
-            <div className="space-y-3 rounded-xl border p-3" style={{ background: "var(--surface-hover)", borderColor: "var(--border-color)" }}>
+            <div className="panel-inset space-y-3 p-3">
               <input
                 autoFocus
                 value={name}
@@ -75,32 +64,25 @@ export default function ExamList({ exams, selectedExamId, onSelect, onAdd, onDel
                   if (e.key === "Escape") { setIsAdding(false); setName(""); setExamDate(""); }
                 }}
                 placeholder="Exam name..."
-                className="w-full rounded-lg border px-3 py-2 text-sm placeholder-zinc-500 outline-none focus:border-indigo-500/50"
-                style={{ background: "var(--input-bg)", borderColor: "var(--border-color)", color: "var(--fg)" }}
+                className="input-field w-full px-3 py-2 text-sm"
               />
               <div className="flex items-center gap-2">
-                <Calendar className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--muted-fg)" }} />
+                <Calendar className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--muted-foreground)" }} />
                 <input
                   type="date"
                   value={examDate}
                   onChange={(e) => setExamDate(e.target.value)}
-                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-indigo-500/50"
-                  style={{ background: "var(--input-bg)", borderColor: "var(--border-color)", color: "var(--fg)" }}
+                  className="input-field w-full px-3 py-2 text-sm"
                 />
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={handleAdd}
-                  disabled={!name.trim()}
-                  className="flex items-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-indigo-600 disabled:opacity-40"
-                >
+                <button onClick={handleAdd} disabled={!name.trim()} className={btnPrimary}>
                   <Check className="h-3.5 w-3.5" />
                   Add
                 </button>
                 <button
                   onClick={() => { setIsAdding(false); setName(""); setExamDate(""); }}
-                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
-                  style={{ background: "var(--surface-hover)", color: "var(--muted-fg)" }}
+                  className={btnSecondary}
                 >
                   <X className="h-3.5 w-3.5" />
                   Cancel
@@ -113,7 +95,9 @@ export default function ExamList({ exams, selectedExamId, onSelect, onAdd, onDel
 
       <div className="space-y-1">
         {exams.length === 0 && !isAdding && (
-          <p className="py-4 text-center text-sm" style={{ color: "var(--card-text-secondary)" }}>No exams yet. Add one to get started.</p>
+          <div className="empty-state py-8">
+            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>No exams yet. Add one to get started.</p>
+          </div>
         )}
         <AnimatePresence>
           {exams.map((exam) => {
@@ -123,33 +107,35 @@ export default function ExamList({ exams, selectedExamId, onSelect, onAdd, onDel
             const isSelected = selectedExamId === exam.id;
 
             return (
-              <motion.button
+              <motion.div
                 key={exam.id}
                 layout
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelect(exam)}
-                className={`group flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors ${
-                  isSelected ? "bg-indigo-500/10" : ""
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(exam); } }}
+                className={`group flex w-full cursor-pointer items-center justify-between px-3 py-2.5 text-left transition-colors ${
+                  isSelected ? "chip-selected" : ""
                 }`}
-                style={!isSelected ? { background: "transparent" } : undefined}
-                onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "var(--surface-hover)"; }}
+                onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "color-mix(in oklch, var(--accent) 40%, transparent)"; }}
                 onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
               >
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <GraduationCap className="h-4 w-4 shrink-0" style={{ color: isSelected ? "#6366f1" : "var(--muted-fg)" }} />
+                  <GraduationCap className="h-4 w-4 shrink-0" style={{ color: isSelected ? "var(--foreground)" : "var(--muted-foreground)" }} />
                   <div className="min-w-0">
-                    <span className="block truncate text-sm" style={{ color: isSelected ? "#6366f1" : "var(--fg)" }}>{exam.name}</span>
+                    <span className="font-display block truncate text-sm" style={{ color: "var(--foreground)" }}>{exam.name}</span>
                     {progress && progress.total > 0 && (
                       <div className="mt-1 flex items-center gap-2">
-                        <div className="h-1 w-16 overflow-hidden rounded-full" style={{ background: "var(--border-color)" }}>
+                        <div className="progress-track w-16">
                           <div
-                            className="h-full rounded-full bg-indigo-500 transition-all"
+                            className="progress-fill transition-all"
                             style={{ width: `${(progress.revised / progress.total) * 100}%` }}
                           />
                         </div>
-                        <span className="text-[10px]" style={{ color: "var(--card-text-secondary)" }}>
+                        <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
                           {progress.revised}/{progress.total}
                         </span>
                       </div>
@@ -159,18 +145,16 @@ export default function ExamList({ exams, selectedExamId, onSelect, onAdd, onDel
 
                 <div className="flex items-center gap-2">
                   {badge && (
-                    <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${badge.className}`}>
-                      {badge.text}
-                    </span>
+                    <span className={badge.className}>{badge.text}</span>
                   )}
                   <button
                     onClick={(e) => { e.stopPropagation(); onDelete(exam.id); }}
-                    className="rounded-md p-1 text-zinc-500 opacity-0 transition-all hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
+                    className="btn-icon btn-danger-ghost opacity-0 transition-all group-hover:opacity-100"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
-              </motion.button>
+              </motion.div>
             );
           })}
         </AnimatePresence>

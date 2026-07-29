@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { PDF_BUCKET } from "@/lib/pdfs";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -37,8 +38,20 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const userId = await verifyToken(request);
     const { id } = await params;
+    const supabase = getSupabase();
 
-    const { error } = await getSupabase()
+    // Best-effort cleanup of attached PDFs (storage objects + metadata rows).
+    const { data: pdfRows } = await supabase
+      .from("pdf_documents")
+      .select("path")
+      .eq("lecture_id", id)
+      .eq("user_id", userId);
+    if (pdfRows && pdfRows.length > 0) {
+      await supabase.storage.from(PDF_BUCKET).remove(pdfRows.map((r) => r.path));
+      await supabase.from("pdf_documents").delete().eq("lecture_id", id).eq("user_id", userId);
+    }
+
+    const { error } = await supabase
       .from("lectures")
       .delete()
       .eq("id", id)

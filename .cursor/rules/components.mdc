@@ -1,0 +1,19 @@
+---
+description: React component patterns for Backlog Track
+globs: src/components/**/*.tsx
+alwaysApply: false
+---
+
+# Component Patterns
+
+- Use Framer Motion (`motion.div`, `AnimatePresence`) for enter/exit animations.
+- Theme with inline `style` using CSS variables, not Tailwind color classes. Example:
+
+```tsx
+style={{ background: "var(--surface)", borderColor: "var(--border-color)", color: "var(--fg)" }}
+```
+
+- Interactive states (hover highlight on rows) use `onMouseEnter`/`onMouseLeave` setting `style.background`.
+- Reuse `SubjectBadge` for toggleable subject chips (pass `active` prop).
+- Detail panels are slide-in overlays from the right (`x: "100%"` → `x: 0`).
+- Keep forms self-contained with local state and a `reset()` function.

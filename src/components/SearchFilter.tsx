@@ -2,6 +2,7 @@
 
 import { Search } from "lucide-react";
 import { LectureStatus, Priority, Subject } from "@/lib/types";
+import { filterActive, filterInactive } from "@/lib/ui";
 import SubjectBadge from "./SubjectBadge";
 
 interface SearchFilterProps {
@@ -35,33 +36,31 @@ export default function SearchFilter({
   return (
     <div className="space-y-3">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--muted-fg)" }} />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--muted-foreground)" }} />
         <input
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search lectures, notes, tags..."
-          className="w-full rounded-xl border py-2.5 pl-10 pr-4 text-sm outline-none focus:border-indigo-500/50 backdrop-blur-sm"
-          style={{ background: "var(--input-bg)", borderColor: "var(--border-color)", color: "var(--fg)" }}
+          placeholder="Search lectures..."
+          className="input-field w-full py-2.5 pl-10 pr-4 text-sm"
         />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 rounded-lg border p-0.5" style={{ borderColor: "var(--border-color)", background: "var(--surface)" }}>
+        <div className="segment-track flex gap-0.5 p-0.5">
           {statusOptions.map((opt) => (
             <button
               key={opt.value}
               onClick={() => onStatusFilterChange(opt.value)}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
-                statusFilter === opt.value ? "bg-indigo-500/15 text-indigo-500" : ""
+              className={`px-2.5 py-1 text-xs font-medium transition-all ${
+                statusFilter === opt.value ? filterActive : filterInactive
               }`}
-              style={statusFilter !== opt.value ? { color: "var(--muted-fg)" } : undefined}
             >
               {opt.label}
             </button>
           ))}
         </div>
 
-        <div className="h-4 w-px" style={{ background: "var(--border-color)" }} />
+        <div className="h-4 w-px" style={{ background: "var(--border)" }} />
 
         {subjects.map((s) => (
           <SubjectBadge

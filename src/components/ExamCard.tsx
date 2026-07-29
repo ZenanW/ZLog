@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { GraduationCap, Calendar, CheckSquare, TrendingUp } from "lucide-react";
 import { Exam, ExamTopic, PracticeTest } from "@/lib/types";
+import { countdownBadge, microLabel } from "@/lib/ui";
 
 interface ExamCardProps {
   exam: Exam;
@@ -19,6 +20,7 @@ function daysUntil(dateStr: string | null): number | null {
 
 export default function ExamCard({ exam, topics, practiceTests, onSelect }: ExamCardProps) {
   const days = daysUntil(exam.examDate);
+  const badge = countdownBadge(days);
   const revisedCount = topics.filter((t) => t.revised).length;
   const topicPercent = topics.length > 0 ? Math.round((revisedCount / topics.length) * 100) : 0;
   const latestTest = practiceTests[0];
@@ -33,72 +35,61 @@ export default function ExamCard({ exam, topics, practiceTests, onSelect }: Exam
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       onClick={() => onSelect(exam)}
-      className="group cursor-pointer overflow-hidden rounded-xl border transition-all hover:shadow-md"
-      style={{ background: "var(--surface)", borderColor: "var(--border-color)" }}
+      className="panel-hover panel cursor-pointer p-4 transition-colors"
     >
-      <div className="p-4">
-        <div className="mb-3 flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10">
-              <GraduationCap className="h-4 w-4 text-indigo-400" />
-            </div>
-            <h3 className="text-sm font-semibold" style={{ color: "var(--card-text)" }}>{exam.name}</h3>
-          </div>
-          {days !== null && (
-            <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${
-              days < 0 ? "bg-zinc-500/15 text-zinc-400"
-              : days === 0 ? "bg-red-500/15 text-red-400"
-              : days <= 3 ? "bg-red-500/15 text-red-400"
-              : days <= 7 ? "bg-amber-500/15 text-amber-500"
-              : "bg-indigo-500/10 text-indigo-400"
-            }`}>
-              {days < 0 ? "Past" : days === 0 ? "Today" : `${days}d left`}
-            </span>
-          )}
+      <div className="mb-3 flex items-start justify-between">
+        <div className="flex items-center gap-2">
+          <GraduationCap className="h-4 w-4 shrink-0" style={{ color: "var(--muted-foreground)" }} />
+          <h3 className="font-display text-base" style={{ color: "var(--foreground)" }}>{exam.name}</h3>
         </div>
+        {badge && days !== null && (
+          <span className={badge.className}>
+            {days < 0 ? "Past" : days === 0 ? "Today" : `${days}d left`}
+          </span>
+        )}
+      </div>
 
-        {exam.examDate && (
-          <div className="mb-3 flex items-center gap-1.5 text-xs" style={{ color: "var(--muted-fg)" }}>
-            <Calendar className="h-3 w-3" />
-            {format(new Date(exam.examDate), "MMM d, yyyy")}
+      {exam.examDate && (
+        <div className="mb-3 flex items-center gap-1.5 text-xs" style={{ color: "var(--muted-foreground)" }}>
+          <Calendar className="h-3 w-3" />
+          {format(new Date(exam.examDate), "MMM d, yyyy")}
+        </div>
+      )}
+
+      {topics.length > 0 && (
+        <div className="mb-3">
+          <div className="mb-1 flex items-center justify-between">
+            <div className={`flex items-center gap-1.5 ${microLabel}`}>
+              <CheckSquare className="h-3 w-3" />
+              Topics
+            </div>
+            <span className="text-xs font-medium" style={{ color: "var(--foreground)" }}>
+              {revisedCount}/{topics.length}
+            </span>
+          </div>
+          <div className="progress-track w-full">
+            <motion.div
+              className="progress-fill"
+              initial={{ width: 0 }}
+              animate={{ width: `${topicPercent}%` }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3">
+        {latestScore !== null && (
+          <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--muted-foreground)" }}>
+            <TrendingUp className="h-3 w-3" />
+            Latest: <span className="font-medium" style={{ color: "var(--foreground)" }}>{latestScore}%</span>
           </div>
         )}
-
-        {topics.length > 0 && (
-          <div className="mb-3">
-            <div className="mb-1 flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--muted-fg)" }}>
-                <CheckSquare className="h-3 w-3" />
-                Topics
-              </div>
-              <span className="text-xs font-medium" style={{ color: "var(--card-text)" }}>
-                {revisedCount}/{topics.length}
-              </span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border-color)" }}>
-              <motion.div
-                className="h-full rounded-full bg-indigo-500"
-                initial={{ width: 0 }}
-                animate={{ width: `${topicPercent}%` }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-              />
-            </div>
-          </div>
+        {practiceTests.length > 0 && (
+          <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+            {practiceTests.length} test{practiceTests.length !== 1 ? "s" : ""}
+          </span>
         )}
-
-        <div className="flex items-center gap-3">
-          {latestScore !== null && (
-            <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--muted-fg)" }}>
-              <TrendingUp className="h-3 w-3" />
-              Latest: <span className="font-medium" style={{ color: "var(--card-text)" }}>{latestScore}%</span>
-            </div>
-          )}
-          {practiceTests.length > 0 && (
-            <span className="text-[10px]" style={{ color: "var(--card-text-secondary)" }}>
-              {practiceTests.length} test{practiceTests.length !== 1 ? "s" : ""}
-            </span>
-          )}
-        </div>
       </div>
     </motion.div>
   );
