@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Lecture, LectureStatus, Priority, Subject } from "@/lib/types";
+import { filterBacklogTrackedLectures } from "@/lib/lectures";
 
 function mapSubjectFromDb(row: Record<string, unknown>): Subject {
   return {
@@ -130,6 +131,7 @@ export function useAppState(idToken: string | null) {
       subjectId: string;
       title: string;
       notes?: string;
+      status?: LectureStatus;
       priority?: Priority;
       duration?: number | null;
       lectureDate?: string | null;
@@ -143,7 +145,7 @@ export function useAppState(idToken: string | null) {
         subjectId: data.subjectId,
         title: data.title,
         notes: data.notes ?? "",
-        status: "backlog",
+        status: data.status ?? "backlog",
         priority: data.priority ?? "medium",
         duration: data.duration ?? null,
         lectureDate: data.lectureDate ?? null,
@@ -155,7 +157,7 @@ export function useAppState(idToken: string | null) {
       try {
         await apiFetch("/api/lectures", idToken, {
           method: "POST",
-          body: JSON.stringify({ id, ...data }),
+          body: JSON.stringify({ id, ...data, status: data.status ?? "backlog" }),
         });
       } catch {
         setLectures((l) => l.filter((lec) => lec.id !== id));
@@ -239,7 +241,7 @@ export function useAppState(idToken: string | null) {
   );
 
   const stats = {
-    total: lectures.length,
+    total: filterBacklogTrackedLectures(lectures).length,
     backlog: lectures.filter((l) => l.status === "backlog").length,
     inProgress: lectures.filter((l) => l.status === "in_progress").length,
     completed: lectures.filter((l) => l.status === "completed").length,

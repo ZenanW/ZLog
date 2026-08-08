@@ -1,4 +1,4 @@
-export type LectureStatus = "backlog" | "in_progress" | "completed";
+export type LectureStatus = "backlog" | "in_progress" | "completed" | "notes_only";
 
 export type Priority = "low" | "medium" | "high";
 
@@ -71,4 +71,28 @@ export interface PracticeTest {
   notes: string;
   takenAt: string;
   createdAt: string;
+}
+
+export const NOTE_FORMATS = ["plain", "cornell"] as const;
+
+export type NoteFormat = (typeof NOTE_FORMATS)[number];
+
+export interface NoteEvaluation {
+  coverageScore: number | null;
+  accuracyFlags: { claim: string; issue: string; slideReference: string }[];
+  missingTopics: string[];
+  structureFeedback: string;
+  summary: string;
+}
+
+export interface Note {
+  id: string;
+  lectureId: string | null;
+  title: string;
+  format: NoteFormat;
+  content: Record<string, unknown>;
+  evaluation: NoteEvaluation | null;
+  evaluatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }

@@ -3,30 +3,35 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Save, ArrowRight, ArrowLeft, Trash2, Sparkles } from "lucide-react";
-import { Lecture, LectureStatus, LecturePdf, Priority, Subject } from "@/lib/types";
+import { Lecture, LectureStatus, LecturePdf, Note, Priority, Subject } from "@/lib/types";
 import {
   btnIconDanger, btnPrimary, input, microLabel, panel, priorityChip, statusChip,
 } from "@/lib/ui";
 import LecturePdfs from "@/components/LecturePdfs";
+import LectureNotesSection from "@/components/LectureNotesSection";
 
 interface ExpandedLectureCardProps {
   lecture: Lecture;
   subject: Subject | undefined;
   subjects: Subject[];
   idToken: string | null;
+  lectureNotes: Note[];
+  onOpenNote: (noteId: string) => void;
+  onTakeNotes: () => void;
   onUpdate: (id: string, updates: Partial<Omit<Lecture, "id" | "createdAt">>) => void;
   onMove: (id: string, status: LectureStatus) => void;
   onDelete: (id: string) => void;
 }
 
 const statusLabels: Record<LectureStatus, string> = {
-  backlog: "Backlog", in_progress: "In Progress", completed: "Completed",
+  backlog: "Backlog", in_progress: "In Progress", completed: "Completed", notes_only: "Capture",
 };
 
 const statusFlow: LectureStatus[] = ["backlog", "in_progress", "completed"];
 
 export default function ExpandedLectureCard({
-  lecture, subject, subjects, idToken, onUpdate, onMove, onDelete,
+  lecture, subject, subjects, idToken, lectureNotes, onOpenNote, onTakeNotes,
+  onUpdate, onMove, onDelete,
 }: ExpandedLectureCardProps) {
   const [title, setTitle] = useState(lecture.title);
   const [priority, setPriority] = useState<Priority>(lecture.priority);
@@ -110,6 +115,12 @@ export default function ExpandedLectureCard({
           </div>
 
           <LecturePdfs lectureId={lecture.id} idToken={idToken} onPdfsChange={setPdfs} />
+
+          <LectureNotesSection
+            notes={lectureNotes}
+            onOpenNote={onOpenNote}
+            onTakeNotes={onTakeNotes}
+          />
         </div>
 
         <div>

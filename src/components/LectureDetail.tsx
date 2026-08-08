@@ -4,17 +4,21 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { X, Save, Trash2, Sparkles } from "lucide-react";
-import { Lecture, LectureStatus, LecturePdf, Priority, Subject } from "@/lib/types";
+import { Lecture, LectureStatus, LecturePdf, Note, Priority, Subject } from "@/lib/types";
 import {
   btnIcon, btnPrimary, input, microLabel, priorityChip, statusChip,
 } from "@/lib/ui";
 import LecturePdfs from "@/components/LecturePdfs";
+import LectureNotesSection from "@/components/LectureNotesSection";
 
 interface LectureDetailProps {
   lecture: Lecture;
   subject: Subject | undefined;
   subjects: Subject[];
   idToken: string | null;
+  lectureNotes: Note[];
+  onOpenNote: (noteId: string) => void;
+  onTakeNotes: () => void;
   onUpdate: (id: string, updates: Partial<Omit<Lecture, "id" | "createdAt">>) => void;
   onMove: (id: string, status: LectureStatus) => void;
   onDelete: (id: string) => void;
@@ -22,7 +26,7 @@ interface LectureDetailProps {
 }
 
 const statusLabels: Record<LectureStatus, string> = {
-  backlog: "Backlog", in_progress: "In Progress", completed: "Completed",
+  backlog: "Backlog", in_progress: "In Progress", completed: "Completed", notes_only: "Capture",
 };
 
 const statusFlow: LectureStatus[] = ["backlog", "in_progress", "completed"];
@@ -31,15 +35,20 @@ const statusSegmentBg: Record<LectureStatus, string> = {
   backlog: "color-mix(in oklch, var(--quiet) 18%, transparent)",
   in_progress: "color-mix(in oklch, var(--active) 18%, transparent)",
   completed: "color-mix(in oklch, var(--active) 18%, transparent)",
+  notes_only: "color-mix(in oklch, var(--quiet) 18%, transparent)",
 };
 
 const statusSegmentFg: Record<LectureStatus, string> = {
   backlog: "var(--quiet)",
   in_progress: "var(--active)",
   completed: "var(--active)",
+  notes_only: "var(--quiet)",
 };
 
-export default function LectureDetail({ lecture, subject, subjects, idToken, onUpdate, onMove, onDelete, onClose }: LectureDetailProps) {
+export default function LectureDetail({
+  lecture, subject, subjects, idToken, lectureNotes, onOpenNote, onTakeNotes,
+  onUpdate, onMove, onDelete, onClose,
+}: LectureDetailProps) {
   const [title, setTitle] = useState(lecture.title);
   const [priority, setPriority] = useState<Priority>(lecture.priority);
   const [subjectId, setSubjectId] = useState(lecture.subjectId);
@@ -144,6 +153,12 @@ export default function LectureDetail({ lecture, subject, subjects, idToken, onU
                 </div>
 
                 <LecturePdfs lectureId={lecture.id} idToken={idToken} onPdfsChange={setPdfs} />
+
+                <LectureNotesSection
+                  notes={lectureNotes}
+                  onOpenNote={onOpenNote}
+                  onTakeNotes={onTakeNotes}
+                />
               </div>
 
               <div>

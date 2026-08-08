@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
-import { BookOpen, Power, LogOut, Sun, Moon, GraduationCap } from "lucide-react";
+import { BookOpen, Power, LogOut, Sun, Moon, GraduationCap, StickyNote } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppState } from "@/hooks/useAppState";
 import { useExamState } from "@/hooks/useExamState";
+import { useNoteState } from "@/hooks/useNoteState";
 import { useTheme } from "@/hooks/useTheme";
 import { Exam, Lecture, LectureStatus, Priority } from "@/lib/types";
+import { filterBacklogTrackedLectures } from "@/lib/lectures";
 import AuthGuard from "@/components/AuthGuard";
 import SemesterTicker from "@/components/SemesterTicker";
 import ExamStatsBar from "@/components/ExamStatsBar";
@@ -21,14 +23,16 @@ import KanbanView from "@/components/KanbanView";
 import ExamList from "@/components/ExamList";
 import ExamCard from "@/components/ExamCard";
 import ExamDetail from "@/components/ExamDetail";
+import NotesTab from "@/components/NotesTab";
 
-type AppTab = "lectures" | "exams";
+type AppTab = "lectures" | "exams" | "notes";
 
 export default function AppShell() {
   const { user, idToken, loading: authLoading, signIn, signOut } = useAuth();
   const { theme, toggle: toggleTheme } = useTheme();
   const app = useAppState(idToken);
   const examState = useExamState(idToken);
+  const noteState = useNoteState(idToken);
   const [appTab, setAppTab] = useState<AppTab>("lectures");
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
@@ -36,16 +40,23 @@ export default function AppShell() {
   const [statusFilter, setStatusFilter] = useState<LectureStatus | "all">("all");
   const [priorityFilter, setPriorityFilter] = useState<Priority | "all">("all");
   const [subjectFilter, setSubjectFilter] = useState<string | "all">("all");
+  const [notesSelectedNoteId, setNotesSelectedNoteId] = useState<string | null>(null);
+
+  const backlogLectures = useMemo(
+    () => filterBacklogTrackedLectures(app.lectures),
+    [app.lectures]
+  );
+
   const lectureCountBySubject = useMemo(() => {
     const counts: Record<string, number> = {};
-    app.lectures.forEach((l) => {
+    backlogLectures.forEach((l) => {
       counts[l.subjectId] = (counts[l.subjectId] ?? 0) + 1;
     });
     return counts;
-  }, [app.lectures]);
+  }, [backlogLectures]);
 
   const filtered = useMemo(() => {
-    let result = app.lectures;
+    let result = backlogLectures;
     if (statusFilter !== "all") result = result.filter((l) => l.status === statusFilter);
     if (priorityFilter !== "all") result = result.filter((l) => l.priority === priorityFilter);
     if (subjectFilter !== "all") result = result.filter((l) => l.subjectId === subjectFilter);
@@ -60,10 +71,49 @@ export default function AppShell() {
       }
       return 0;
     });
-  }, [app.lectures, statusFilter, priorityFilter, subjectFilter, search]);
+  }, [backlogLectures, statusFilter, priorityFilter, subjectFilter, search]);
+
+  const handleDeleteNote = useCallback(
+    async (id: string) => {
+      const note = noteState.notes.find((n) => n.id === id);
+      const lectureId = note?.lectureId;
+      const lecture = lectureId ? app.lectures.find((l) => l.id === lectureId) : undefined;
+      const shouldDeleteCaptureLecture =
+        lecture?.status === "notes_only" &&
+        noteState.notes.filter((n) => n.lectureId === lectureId).length === 1;
+
+      await noteState.deleteNote(id);
+
+      if (shouldDeleteCaptureLecture && lectureId) {
+        await app.deleteLecture(lectureId);
+      }
+    },
+    [noteState, app]
+  );
+
+  const handleOpenNote = useCallback((noteId: string) => {
+    setSelectedLecture(null);
+    setAppTab("notes");
+    setNotesSelectedNoteId(noteId);
+  }, []);
+
+  const handleTakeNotesForLecture = useCallback(
+    async (lecture: Lecture) => {
+      const note = await noteState.addNote({
+        title: lecture.title,
+        lectureId: lecture.id,
+      });
+      if (note) {
+        setSelectedLecture(null);
+        setAppTab("notes");
+        setNotesSelectedNoteId(note.id);
+      }
+    },
+    [noteState]
+  );
 
   const currentSelectedLecture = selectedLecture
-    ? app.lectures.find((l) => l.id === selectedLecture.id) ?? null
+    ? backlogLectures.find((l) => l.id === selectedLecture.id) ?? null
     : null;
 
   const currentSelectedExam = selectedExam
@@ -81,7 +131,7 @@ export default function AppShell() {
 
   return (
     <AuthGuard user={user} loading={authLoading} onSignIn={signIn}>
-      {!app.loaded || !examState.loaded ? (
+      {!app.loaded || !examState.loaded || !noteState.loaded ? (
         <div className="flex min-h-screen flex-col items-center justify-center gap-4">
           <BookOpen className="h-10 w-10" style={{ color: "var(--muted-foreground)" }} />
           <div
@@ -121,6 +171,15 @@ export default function AppShell() {
                   >
                     <GraduationCap className="h-3.5 w-3.5" />
                     Exams
+                  </button>
+                  <button
+                    onClick={() => setAppTab("notes")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-all ${
+                      appTab === "notes" ? "chip-selected" : "chip"
+                    }`}
+                  >
+                    <StickyNote className="h-3.5 w-3.5" />
+                    Notes
                   </button>
                 </div>
 
@@ -190,7 +249,7 @@ export default function AppShell() {
               <>
                 <div className="mb-6">
                   <SemesterTicker
-                    lectures={app.lectures}
+                    lectures={backlogLectures}
                     subjects={app.subjects}
                     exams={examState.exams}
                     topicProgress={topicProgress}
@@ -207,7 +266,7 @@ export default function AppShell() {
                       onDelete={app.deleteSubject}
                       lectureCountBySubject={lectureCountBySubject}
                     />
-                    <AddLectureForm subjects={app.subjects} lectures={app.lectures} onAdd={app.addLecture} />
+                    <AddLectureForm subjects={app.subjects} lectures={backlogLectures} onAdd={app.addLecture} />
                   </aside>
 
                   <section className="space-y-4">
@@ -235,6 +294,9 @@ export default function AppShell() {
                               subject={app.getSubject(lecture.subjectId)}
                               subjects={app.subjects}
                               idToken={idToken}
+                              lectureNotes={noteState.getNotesForLecture(lecture.id)}
+                              onOpenNote={handleOpenNote}
+                              onTakeNotes={() => handleTakeNotesForLecture(lecture)}
                               onUpdate={app.updateLecture}
                               onMove={app.moveLecture}
                               onDelete={app.deleteLecture}
@@ -261,6 +323,22 @@ export default function AppShell() {
                   </section>
                 </div>
               </>
+            ) : appTab === "notes" ? (
+              <NotesTab
+                notes={noteState.notes}
+                subjects={app.subjects}
+                lectures={app.lectures}
+                getSubject={app.getSubject}
+                onAddNote={noteState.addNote}
+                onDeleteNote={handleDeleteNote}
+                onUpdateNote={noteState.updateNote}
+                onQuickCreateLecture={(data) =>
+                  app.addLecture({ ...data, status: "notes_only" })
+                }
+                selectedNoteId={notesSelectedNoteId}
+                onSelectedNoteIdChange={setNotesSelectedNoteId}
+                idToken={idToken}
+              />
             ) : (
               <>
                 <div className="mb-6">
@@ -315,6 +393,9 @@ export default function AppShell() {
                 subject={app.getSubject(currentSelectedLecture.subjectId)}
                 subjects={app.subjects}
                 idToken={idToken}
+                lectureNotes={noteState.getNotesForLecture(currentSelectedLecture.id)}
+                onOpenNote={handleOpenNote}
+                onTakeNotes={() => handleTakeNotesForLecture(currentSelectedLecture)}
                 onUpdate={app.updateLecture}
                 onMove={app.moveLecture}
                 onDelete={app.deleteLecture}

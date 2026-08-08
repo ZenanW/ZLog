@@ -9,7 +9,7 @@ Next.js 16 app for tracking university lecture backlogs and exam prep. Uses Fire
 
 ## Architecture
 
-- **Frontend**: Single-page app in `src/components/AppShell.tsx` with two tabs: lectures and exams.
+- **Frontend**: Single-page app in `src/components/AppShell.tsx` with tabs: lectures, exams, and notes (notes tab is being added in the current dev cycle — see `GOAL.md`).
 - **State hooks**: `src/hooks/useAppState.ts` (lectures/subjects) and `src/hooks/useExamState.ts` (exams/topics/practice tests). Both use optimistic updates with rollback on error.
 - **API routes**: Next.js route handlers in `src/app/api/`. All require Bearer token auth via `verifyToken()`. DB columns use `snake_case`; client types in `src/lib/types.ts` use `camelCase`.
 - **Styling**: CSS variables for theming (light/dark). Inline `style={}` with `var(--surface)`, `var(--fg)`, `var(--muted-fg)`, `var(--border-color)`, `var(--input-bg)`, etc. No CSS modules.
