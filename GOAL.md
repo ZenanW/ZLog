@@ -102,7 +102,7 @@ No automated test suite exists; do not block on tests. Manual user testing is th
 
 _Agent updates this line every run._
 
-Note images shipped: private `note-images` bucket upload via `/api/notes/images`, signed URLs via `/api/notes/images/sign` (client cache), Tiptap image nodes store `storagePath` only, drag-drop + insert button in editor, validation (png/jpeg/webp/gif, 5 MB max) with visible errors. Works in plain and Cornell editors.
+Mobile pass (not advancing AI evaluation): delete/edit controls that were hover-only are always visible on small screens (`sm:` hover hide); Notes list + NoteEditor delete work on touch; header tabs icon-only on phone; Cornell stacks vertically below `sm`; lecture detail / PDF rows / filters wrap more cleanly. Note images still shipped as before. Next backlog item remains AI evaluation.
 
 ## Backlog
 

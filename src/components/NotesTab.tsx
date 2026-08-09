@@ -139,6 +139,10 @@ export default function NotesTab({
         idToken={idToken}
         getSubject={getSubject}
         onUpdate={onUpdateNote}
+        onDelete={(id) => {
+          onDeleteNote(id);
+          onSelectedNoteIdChange(null);
+        }}
         onBack={() => onSelectedNoteIdChange(null)}
         onQuickCreateLecture={onQuickCreateLecture}
       />
@@ -325,7 +329,7 @@ export default function NotesTab({
                       e.stopPropagation();
                       onDeleteNote(note.id);
                     }}
-                    className="btn-icon btn-danger-ghost shrink-0 opacity-0 transition-all group-hover:opacity-100"
+                    className="btn-icon btn-danger-ghost shrink-0 opacity-100 transition-all sm:opacity-0 sm:group-hover:opacity-100"
                     title="Delete note"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

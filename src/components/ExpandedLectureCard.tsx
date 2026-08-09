@@ -75,17 +75,25 @@ export default function ExpandedLectureCard({
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex w-full shrink-0 flex-wrap items-center gap-1 sm:w-auto">
           {currentIdx > 0 && (
-            <button onClick={() => onMove(lecture.id, statusFlow[currentIdx - 1])}
-              className="btn btn-secondary flex items-center gap-1 text-xs">
-              <ArrowLeft className="h-3.5 w-3.5" /> {statusLabels[statusFlow[currentIdx - 1]]}
+            <button
+              onClick={() => onMove(lecture.id, statusFlow[currentIdx - 1])}
+              className="btn btn-secondary flex items-center gap-1 text-xs"
+              title={`Move to ${statusLabels[statusFlow[currentIdx - 1]]}`}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{statusLabels[statusFlow[currentIdx - 1]]}</span>
             </button>
           )}
           {currentIdx < statusFlow.length - 1 && (
-            <button onClick={() => onMove(lecture.id, statusFlow[currentIdx + 1])}
-              className="btn btn-secondary flex items-center gap-1 text-xs">
-              {statusLabels[statusFlow[currentIdx + 1]]} <ArrowRight className="h-3.5 w-3.5" />
+            <button
+              onClick={() => onMove(lecture.id, statusFlow[currentIdx + 1])}
+              className="btn btn-secondary flex items-center gap-1 text-xs"
+              title={`Move to ${statusLabels[statusFlow[currentIdx + 1]]}`}
+            >
+              <span className="hidden sm:inline">{statusLabels[statusFlow[currentIdx + 1]]}</span>
+              <ArrowRight className="h-3.5 w-3.5" />
             </button>
           )}
           <button onClick={() => onDelete(lecture.id)} className={btnIconDanger} title="Delete lecture">

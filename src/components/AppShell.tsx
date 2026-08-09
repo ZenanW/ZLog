@@ -143,43 +143,46 @@ export default function AppShell() {
       ) : (
         <div className="min-h-screen">
           <header className="sticky top-0 z-40 border-b" style={{ background: "var(--header-bg)", borderColor: "color-mix(in oklch, var(--border) 60%, transparent)" }}>
-            <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
-              <div className="flex items-center gap-3">
-                <BookOpen className="h-6 w-6 shrink-0" style={{ color: "var(--foreground)" }} />
-                <div>
-                  <h1 className="font-display text-xl leading-none" style={{ color: "var(--foreground)" }}>Backlog Track</h1>
-                  <p className="micro-label mt-0.5 normal-case tracking-normal">Lecture & Notes Tracker</p>
+            <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
+              <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                <BookOpen className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" style={{ color: "var(--foreground)" }} />
+                <div className="min-w-0">
+                  <h1 className="font-display text-lg leading-none sm:text-xl" style={{ color: "var(--foreground)" }}>Backlog Track</h1>
+                  <p className="micro-label mt-0.5 hidden normal-case tracking-normal sm:block">Lecture & Notes Tracker</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
                 <div className="segment-track flex items-center gap-0.5 p-0.5">
                   <button
                     onClick={() => setAppTab("lectures")}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-all ${
+                    className={`flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium transition-all sm:px-2.5 ${
                       appTab === "lectures" ? "chip-selected" : "chip"
                     }`}
+                    title="Lectures"
                   >
                     <BookOpen className="h-3.5 w-3.5" />
-                    Lectures
+                    <span className="hidden sm:inline">Lectures</span>
                   </button>
                   <button
                     onClick={() => setAppTab("exams")}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-all ${
+                    className={`flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium transition-all sm:px-2.5 ${
                       appTab === "exams" ? "chip-selected" : "chip"
                     }`}
+                    title="Exams"
                   >
                     <GraduationCap className="h-3.5 w-3.5" />
-                    Exams
+                    <span className="hidden sm:inline">Exams</span>
                   </button>
                   <button
                     onClick={() => setAppTab("notes")}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-all ${
+                    className={`flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium transition-all sm:px-2.5 ${
                       appTab === "notes" ? "chip-selected" : "chip"
                     }`}
+                    title="Notes"
                   >
                     <StickyNote className="h-3.5 w-3.5" />
-                    Notes
+                    <span className="hidden sm:inline">Notes</span>
                   </button>
                 </div>
 

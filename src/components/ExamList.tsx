@@ -149,7 +149,7 @@ export default function ExamList({ exams, selectedExamId, onSelect, onAdd, onDel
                   )}
                   <button
                     onClick={(e) => { e.stopPropagation(); onDelete(exam.id); }}
-                    className="btn-icon btn-danger-ghost opacity-0 transition-all group-hover:opacity-100"
+                    className="btn-icon btn-danger-ghost opacity-100 transition-all sm:opacity-0 sm:group-hover:opacity-100"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>

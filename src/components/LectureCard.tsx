@@ -66,7 +66,7 @@ export default function LectureCard({ lecture, subject, onSelect, onMove, onDele
           </div>
         </button>
 
-        <div className="ml-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="ml-2 flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
           {canMoveBack && (
             <button
               onClick={(e) => { e.stopPropagation(); onMove(lecture.id, statusFlow[currentIdx - 1]); }}

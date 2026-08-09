@@ -208,7 +208,7 @@ export default function ExamDetail({
                     </button>
                     <button
                       onClick={() => onDeleteTopic(exam.id, topic.id)}
-                      className={btnIconDanger + " opacity-0 transition-all group-hover:opacity-100"}
+                      className={btnIconDanger + " opacity-100 transition-all sm:opacity-0 sm:group-hover:opacity-100"}
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -367,7 +367,7 @@ export default function ExamDetail({
                   </div>
                   <button
                     onClick={() => onDeletePracticeTest(exam.id, test.id)}
-                    className={btnIconDanger + " opacity-0 transition-all group-hover:opacity-100"}
+                    className={btnIconDanger + " opacity-100 transition-all sm:opacity-0 sm:group-hover:opacity-100"}
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>

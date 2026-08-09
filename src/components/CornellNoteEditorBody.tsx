@@ -39,7 +39,7 @@ export default function PlainNoteEditorBody({
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: "note-editor-prose outline-none min-h-[24rem]",
+        class: "note-editor-prose outline-none min-h-[16rem] sm:min-h-[24rem]",
       },
       ...createEditorImageHandlers(() => editorRef.current, idToken, onImageError),
     },

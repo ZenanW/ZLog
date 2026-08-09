@@ -13,6 +13,7 @@ import {
   Link2,
   Unlink,
   ImagePlus,
+  Trash2,
 } from "lucide-react";
 import { Lecture, Note, NoteFormat, Subject } from "@/lib/types";
 import {
@@ -38,6 +39,7 @@ interface NoteEditorProps {
   idToken: string | null;
   getSubject: (id: string) => Subject | undefined;
   onUpdate: (id: string, updates: Partial<Omit<Note, "id" | "createdAt">>) => void;
+  onDelete: (id: string) => void;
   onBack: () => void;
   onQuickCreateLecture: (data: {
     subjectId: string;
@@ -79,6 +81,7 @@ export default function NoteEditor({
   idToken,
   getSubject,
   onUpdate,
+  onDelete,
   onBack,
   onQuickCreateLecture,
 }: NoteEditorProps) {
@@ -263,19 +266,31 @@ export default function NoteEditor({
           <ArrowLeft className="h-4 w-4" />
           All notes
         </button>
-        <span
-          className="text-xs"
-          style={{
-            color:
-              saveStatus === "error"
-                ? "var(--alert)"
-                : saveStatus === "saving"
-                  ? "var(--muted-foreground)"
-                  : "var(--quiet)",
-          }}
-        >
-          {saveLabel}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className="text-xs"
+            style={{
+              color:
+                saveStatus === "error"
+                  ? "var(--alert)"
+                  : saveStatus === "saving"
+                    ? "var(--muted-foreground)"
+                    : "var(--quiet)",
+            }}
+          >
+            {saveLabel}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm("Delete this note?")) onDelete(note.id);
+            }}
+            className="btn-icon btn-danger-ghost"
+            title="Delete note"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <div className={`${panel} space-y-4 p-5`}>
@@ -290,20 +305,20 @@ export default function NoteEditor({
           <button
             type="button"
             onClick={() => setShowAttachmentPicker((v) => !v)}
-            className="chip inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium"
+            className="chip inline-flex max-w-full items-center gap-1.5 px-2.5 py-1 text-xs font-medium sm:max-w-xs"
           >
             {note.lectureId && subject ? (
               <>
                 <span className="h-2 w-2 shrink-0" style={{ backgroundColor: subject.color }} />
-                {lecture?.title ?? subject.name}
+                <span className="truncate">{lecture?.title ?? subject.name}</span>
               </>
             ) : (
               <>
-                <Unlink className="h-3 w-3" />
+                <Unlink className="h-3 w-3 shrink-0" />
                 Unattached
               </>
             )}
-            <Link2 className="h-3 w-3" style={{ color: "var(--muted-foreground)" }} />
+            <Link2 className="h-3 w-3 shrink-0" style={{ color: "var(--muted-foreground)" }} />
           </button>
         </div>
 

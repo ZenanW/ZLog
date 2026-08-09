@@ -46,12 +46,12 @@ export default function SearchFilter({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="segment-track flex gap-0.5 p-0.5">
+        <div className="segment-track flex max-w-full flex-wrap gap-0.5 p-0.5">
           {statusOptions.map((opt) => (
             <button
               key={opt.value}
               onClick={() => onStatusFilterChange(opt.value)}
-              className={`px-2.5 py-1 text-xs font-medium transition-all ${
+              className={`px-2 py-1 text-xs font-medium transition-all sm:px-2.5 ${
                 statusFilter === opt.value ? filterActive : filterInactive
               }`}
             >
@@ -60,17 +60,21 @@ export default function SearchFilter({
           ))}
         </div>
 
-        <div className="h-4 w-px" style={{ background: "var(--border)" }} />
+        {subjects.length > 0 && (
+          <div className="hidden h-4 w-px sm:block" style={{ background: "var(--border)" }} />
+        )}
 
-        {subjects.map((s) => (
-          <SubjectBadge
-            key={s.id}
-            name={s.name}
-            color={s.color}
-            active={subjectFilter === s.id}
-            onClick={() => onSubjectFilterChange(subjectFilter === s.id ? "all" : s.id)}
-          />
-        ))}
+        <div className="flex max-w-full flex-wrap gap-1.5">
+          {subjects.map((s) => (
+            <SubjectBadge
+              key={s.id}
+              name={s.name}
+              color={s.color}
+              active={subjectFilter === s.id}
+              onClick={() => onSubjectFilterChange(subjectFilter === s.id ? "all" : s.id)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

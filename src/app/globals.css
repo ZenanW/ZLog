@@ -379,31 +379,51 @@ textarea {
 
 /* Note editor surfaces */
 .note-editor-surface {
-  min-height: 28rem;
+  min-height: 20rem;
 }
 
 .note-editor-plain {
-  padding: 2rem 2.5rem;
+  padding: 1.25rem 1rem;
   background: var(--surface);
 }
 
 .note-editor-cornell {
   display: grid;
-  grid-template-columns: 30% 1fr;
-  grid-template-rows: minmax(18rem, 1fr) auto;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto;
   grid-template-areas:
-    "cue notes"
-    "summary summary";
-  min-height: 28rem;
+    "cue"
+    "notes"
+    "summary";
+  min-height: 20rem;
   border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   background: var(--surface);
+}
+
+@media (min-width: 640px) {
+  .note-editor-surface {
+    min-height: 28rem;
+  }
+
+  .note-editor-plain {
+    padding: 2rem 2.5rem;
+  }
+
+  .note-editor-cornell {
+    grid-template-columns: 30% 1fr;
+    grid-template-rows: minmax(18rem, 1fr) auto;
+    grid-template-areas:
+      "cue notes"
+      "summary summary";
+    min-height: 28rem;
+  }
 }
 
 .cornell-cue {
   grid-area: cue;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   padding: 1rem 1rem 1.25rem;
   min-height: 0;
 }
@@ -412,7 +432,8 @@ textarea {
   grid-area: notes;
   display: flex;
   flex-direction: column;
-  padding: 1rem 1.25rem 1.25rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+  padding: 1rem 1rem 1.25rem;
   min-height: 0;
 }
 
@@ -420,9 +441,26 @@ textarea {
   grid-area: summary;
   display: flex;
   flex-direction: column;
-  border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
-  padding: 1rem 1.25rem 1.25rem;
-  min-height: 6rem;
+  padding: 1rem 1rem 1.25rem;
+  min-height: 5rem;
+}
+
+@media (min-width: 640px) {
+  .cornell-cue {
+    border-bottom: none;
+    border-right: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+  }
+
+  .cornell-notes {
+    border-bottom: none;
+    padding: 1rem 1.25rem 1.25rem;
+  }
+
+  .cornell-summary {
+    border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    padding: 1rem 1.25rem 1.25rem;
+    min-height: 6rem;
+  }
 }
 
 .cornell-region-label {
@@ -432,11 +470,22 @@ textarea {
 .cornell-cue .note-editor-prose,
 .cornell-notes .note-editor-prose {
   flex: 1;
-  min-height: 12rem;
+  min-height: 8rem;
 }
 
 .cornell-summary .note-editor-prose {
-  min-height: 4rem;
+  min-height: 3.5rem;
+}
+
+@media (min-width: 640px) {
+  .cornell-cue .note-editor-prose,
+  .cornell-notes .note-editor-prose {
+    min-height: 12rem;
+  }
+
+  .cornell-summary .note-editor-prose {
+    min-height: 4rem;
+  }
 }
 
 .note-editor-prose {

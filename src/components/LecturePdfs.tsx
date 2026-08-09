@@ -211,7 +211,7 @@ export default function LecturePdfs({ lectureId, idToken, onPdfsChange }: Lectur
             const isAnalyzing = analyzing.has(pdf.id);
             return (
               <div key={pdf.id} className="panel px-3 py-2">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <FileText className="h-4 w-4 shrink-0" style={{ color: "var(--muted-foreground)" }} />
                   <span className="min-w-0 flex-1 truncate text-xs" style={{ color: "var(--foreground)" }} title={pdf.name}>
                     {pdf.name}
@@ -220,20 +220,22 @@ export default function LecturePdfs({ lectureId, idToken, onPdfsChange }: Lectur
                   <span className="shrink-0 text-[10px]" style={{ color: "var(--muted-foreground)" }}>
                     {formatSize(pdf.size)}
                   </span>
-                  <button
-                    onClick={() => analyzePdf(pdf)}
-                    disabled={isAnalyzing}
-                    className={btnIcon}
-                    title={pdf.analyzedAt ? "Re-analyze with AI" : "Analyze with AI"}
-                  >
-                    {isAnalyzing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                  </button>
-                  <button onClick={() => openPdf(pdf)} className={btnIcon} title="Open PDF">
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </button>
-                  <button onClick={() => deletePdf(pdf)} className={btnIconDanger} title="Delete PDF">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="ml-auto flex shrink-0 items-center gap-1">
+                    <button
+                      onClick={() => analyzePdf(pdf)}
+                      disabled={isAnalyzing}
+                      className={btnIcon}
+                      title={pdf.analyzedAt ? "Re-analyze with AI" : "Analyze with AI"}
+                    >
+                      {isAnalyzing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    </button>
+                    <button onClick={() => openPdf(pdf)} className={btnIcon} title="Open PDF">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => deletePdf(pdf)} className={btnIconDanger} title="Delete PDF">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {isAnalyzing && !pdf.analyzedAt && (
@@ -242,25 +244,28 @@ export default function LecturePdfs({ lectureId, idToken, onPdfsChange }: Lectur
                   </p>
                 )}
 
-                {pdf.analyzedAt && pdf.summary && (
+                {pdf.analyzedAt && (pdf.priorityRecommendation || pdf.difficulty !== null) && (
                   <div className="mt-2 space-y-1.5 border-t pt-2" style={{ borderColor: "color-mix(in oklch, var(--border) 60%, transparent)" }}>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {pdf.priorityRecommendation && (
-                        <span className={`px-2 py-0.5 text-[10px] font-medium capitalize ${priorityChip(pdf.priorityRecommendation, true)}`}>
-                          {pdf.priorityRecommendation} priority
+                    {pdf.priorityRecommendation && (
+                      <span className={`inline-block px-2 py-0.5 text-[10px] font-medium capitalize ${priorityChip(pdf.priorityRecommendation, true)}`}>
+                        {pdf.priorityRecommendation} priority
+                      </span>
+                    )}
+                    {pdf.difficulty !== null && (
+                      <div className="flex items-center gap-2">
+                        <span className="shrink-0 text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                          Difficulty
                         </span>
-                      )}
-                      {pdf.difficulty !== null && (
-                        <span className="chip px-2 py-0.5 text-[10px] font-medium">
-                          Difficulty {pdf.difficulty}/7
+                        <div className="progress-track min-w-0 flex-1" title={`Difficulty ${pdf.difficulty}/7`}>
+                          <div
+                            className="progress-fill transition-all"
+                            style={{ width: `${(pdf.difficulty / 7) * 100}%` }}
+                          />
+                        </div>
+                        <span className="shrink-0 text-[10px] tabular-nums" style={{ color: "var(--muted-foreground)" }}>
+                          {pdf.difficulty}/7
                         </span>
-                      )}
-                    </div>
-                    <p className="font-display text-[11px] leading-relaxed" style={{ color: "var(--foreground)" }}>{pdf.summary}</p>
-                    {pdf.priorityReason && (
-                      <p className="text-[11px] italic leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
-                        {pdf.priorityReason}
-                      </p>
+                      </div>
                     )}
                   </div>
                 )}

@@ -147,7 +147,7 @@ export default function SubjectManager({ subjects, onAdd, onUpdate, onDelete, le
                   {lectureCountBySubject[subject.id] ?? 0}
                 </span>
               </div>
-              <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                 <button onClick={() => startEdit(subject)} className="btn-icon">
                   <Pencil className="h-3.5 w-3.5" />
                 </button>

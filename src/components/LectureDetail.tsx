@@ -67,7 +67,7 @@ export default function LectureDetail({
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
       style={{ background: "var(--overlay-bg)" }}
       onClick={onClose}
     >
@@ -77,18 +77,18 @@ export default function LectureDetail({
         exit={{ opacity: 0, scale: 0.98, y: 12 }}
         transition={{ type: "spring", damping: 28, stiffness: 320 }}
         onClick={(e) => e.stopPropagation()}
-        className="panel flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden"
+        className="panel flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden sm:max-h-[90vh]"
         style={{ background: "var(--detail-bg)" }}
       >
-        <div className="flex items-center justify-between border-b px-6 py-4" style={{ borderColor: "color-mix(in oklch, var(--border) 60%, transparent)" }}>
+        <div className="flex items-center justify-between border-b px-4 py-3 sm:px-6 sm:py-4" style={{ borderColor: "color-mix(in oklch, var(--border) 60%, transparent)" }}>
           <div className="flex min-w-0 items-center gap-2">
             <span className={`shrink-0 px-2.5 py-0.5 text-xs font-medium ${statusChip(lecture.status)}`}>
               {statusLabels[lecture.status]}
             </span>
             {subject && (
-              <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--muted-foreground)" }}>
+              <span className="flex min-w-0 items-center gap-1.5 text-xs" style={{ color: "var(--muted-foreground)" }}>
                 <span className="h-2 w-2 shrink-0" style={{ backgroundColor: subject.color }} />
-                {subject.name}
+                <span className="truncate">{subject.name}</span>
               </span>
             )}
           </div>
@@ -97,11 +97,11 @@ export default function LectureDetail({
           </button>
         </div>
 
-        <div className="overflow-y-auto p-6">
+        <div className="overflow-y-auto p-4 sm:p-6">
           <div className="space-y-5">
             <input
               value={title} onChange={(e) => setTitle(e.target.value)}
-              className="font-display w-full bg-transparent text-2xl outline-none"
+              className="font-display w-full bg-transparent text-xl outline-none sm:text-2xl"
               style={{ color: "var(--foreground)" }}
               placeholder="Lecture title..."
             />
@@ -123,7 +123,7 @@ export default function LectureDetail({
                   <button
                     key={status}
                     onClick={() => onMove(lecture.id, status)}
-                    className="relative z-10 px-3 py-2 text-xs font-medium transition-colors"
+                    className="relative z-10 px-1.5 py-2 text-[11px] font-medium transition-colors sm:px-3 sm:text-xs"
                     style={{ color: active ? statusSegmentFg[status] : "var(--muted-foreground)" }}
                   >
                     {statusLabels[status]}
