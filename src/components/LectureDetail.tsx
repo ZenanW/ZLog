@@ -3,30 +3,27 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
-import { X, Save, Trash2, Sparkles } from "lucide-react";
-import { Lecture, LectureStatus, LecturePdf, Note, Priority, Subject } from "@/lib/types";
+import { X, Save, Trash2, Sparkles, ListChecks } from "lucide-react";
+import { Lecture, LectureStatus, LecturePdf, Priority, Subject } from "@/lib/types";
 import {
-  btnIcon, btnPrimary, input, microLabel, priorityChip, statusChip,
+  btnIcon, btnPrimary, btnSecondary, input, microLabel, priorityChip, statusChip,
 } from "@/lib/ui";
 import LecturePdfs from "@/components/LecturePdfs";
-import LectureNotesSection from "@/components/LectureNotesSection";
 
 interface LectureDetailProps {
   lecture: Lecture;
   subject: Subject | undefined;
   subjects: Subject[];
   idToken: string | null;
-  lectureNotes: Note[];
-  onOpenNote: (noteId: string) => void;
-  onTakeNotes: () => void;
   onUpdate: (id: string, updates: Partial<Omit<Lecture, "id" | "createdAt">>) => void;
   onMove: (id: string, status: LectureStatus) => void;
   onDelete: (id: string) => void;
+  onPractice?: () => void;
   onClose: () => void;
 }
 
 const statusLabels: Record<LectureStatus, string> = {
-  backlog: "Backlog", in_progress: "In Progress", completed: "Completed", notes_only: "Capture",
+  backlog: "Backlog", in_progress: "In Progress", completed: "Completed",
 };
 
 const statusFlow: LectureStatus[] = ["backlog", "in_progress", "completed"];
@@ -35,19 +32,17 @@ const statusSegmentBg: Record<LectureStatus, string> = {
   backlog: "color-mix(in oklch, var(--quiet) 18%, transparent)",
   in_progress: "color-mix(in oklch, var(--active) 18%, transparent)",
   completed: "color-mix(in oklch, var(--active) 18%, transparent)",
-  notes_only: "color-mix(in oklch, var(--quiet) 18%, transparent)",
 };
 
 const statusSegmentFg: Record<LectureStatus, string> = {
   backlog: "var(--quiet)",
   in_progress: "var(--active)",
   completed: "var(--active)",
-  notes_only: "var(--quiet)",
 };
 
 export default function LectureDetail({
-  lecture, subject, subjects, idToken, lectureNotes, onOpenNote, onTakeNotes,
-  onUpdate, onMove, onDelete, onClose,
+  lecture, subject, subjects, idToken,
+  onUpdate, onMove, onDelete, onPractice, onClose,
 }: LectureDetailProps) {
   const [title, setTitle] = useState(lecture.title);
   const [priority, setPriority] = useState<Priority>(lecture.priority);
@@ -92,9 +87,17 @@ export default function LectureDetail({
               </span>
             )}
           </div>
-          <button onClick={onClose} className={btnIcon}>
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            {onPractice && (
+              <button type="button" onClick={onPractice} className={btnSecondary} title="Practice this lecture">
+                <ListChecks className="h-3.5 w-3.5" />
+                Practice
+              </button>
+            )}
+            <button onClick={onClose} className={btnIcon}>
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         <div className="overflow-y-auto p-4 sm:p-6">
@@ -153,12 +156,6 @@ export default function LectureDetail({
                 </div>
 
                 <LecturePdfs lectureId={lecture.id} idToken={idToken} onPdfsChange={setPdfs} />
-
-                <LectureNotesSection
-                  notes={lectureNotes}
-                  onOpenNote={onOpenNote}
-                  onTakeNotes={onTakeNotes}
-                />
               </div>
 
               <div>

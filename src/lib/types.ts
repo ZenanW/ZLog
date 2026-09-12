@@ -1,4 +1,4 @@
-export type LectureStatus = "backlog" | "in_progress" | "completed" | "notes_only";
+export type LectureStatus = "backlog" | "in_progress" | "completed";
 
 export type Priority = "low" | "medium" | "high";
 
@@ -73,26 +73,33 @@ export interface PracticeTest {
   createdAt: string;
 }
 
-export const NOTE_FORMATS = ["plain", "cornell"] as const;
+export const PRACTICE_QUESTION_KINDS = ["mcq", "short"] as const;
 
-export type NoteFormat = (typeof NOTE_FORMATS)[number];
+export type PracticeQuestionKind = (typeof PRACTICE_QUESTION_KINDS)[number];
 
-export interface NoteEvaluation {
-  coverageScore: number | null;
-  accuracyFlags: { claim: string; issue: string; slideReference: string }[];
-  missingTopics: string[];
-  structureFeedback: string;
-  summary: string;
+export interface PracticeChoice {
+  id: string;
+  text: string;
 }
 
-export interface Note {
+export interface PracticeQuestion {
   id: string;
-  lectureId: string | null;
-  title: string;
-  format: NoteFormat;
-  content: Record<string, unknown>;
-  evaluation: NoteEvaluation | null;
-  evaluatedAt: string | null;
+  setId: string;
+  sortOrder: number;
+  kind: PracticeQuestionKind;
+  prompt: string;
+  choices: PracticeChoice[] | null;
+  correctChoiceId: string | null;
+  modelAnswer: string | null;
+  explanation: string;
+  slideReference: string | null;
+}
+
+export interface PracticeSet {
+  id: string;
+  lectureId: string;
+  generatedAt: string;
   createdAt: string;
   updatedAt: string;
+  questions: PracticeQuestion[];
 }

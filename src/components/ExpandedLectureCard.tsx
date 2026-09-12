@@ -2,36 +2,33 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Save, ArrowRight, ArrowLeft, Trash2, Sparkles } from "lucide-react";
-import { Lecture, LectureStatus, LecturePdf, Note, Priority, Subject } from "@/lib/types";
+import { Save, ArrowRight, ArrowLeft, Trash2, Sparkles, ListChecks } from "lucide-react";
+import { Lecture, LectureStatus, LecturePdf, Priority, Subject } from "@/lib/types";
 import {
   btnIconDanger, btnPrimary, input, microLabel, panel, priorityChip, statusChip,
 } from "@/lib/ui";
 import LecturePdfs from "@/components/LecturePdfs";
-import LectureNotesSection from "@/components/LectureNotesSection";
 
 interface ExpandedLectureCardProps {
   lecture: Lecture;
   subject: Subject | undefined;
   subjects: Subject[];
   idToken: string | null;
-  lectureNotes: Note[];
-  onOpenNote: (noteId: string) => void;
-  onTakeNotes: () => void;
   onUpdate: (id: string, updates: Partial<Omit<Lecture, "id" | "createdAt">>) => void;
   onMove: (id: string, status: LectureStatus) => void;
   onDelete: (id: string) => void;
+  onPractice?: () => void;
 }
 
 const statusLabels: Record<LectureStatus, string> = {
-  backlog: "Backlog", in_progress: "In Progress", completed: "Completed", notes_only: "Capture",
+  backlog: "Backlog", in_progress: "In Progress", completed: "Completed",
 };
 
 const statusFlow: LectureStatus[] = ["backlog", "in_progress", "completed"];
 
 export default function ExpandedLectureCard({
-  lecture, subject, subjects, idToken, lectureNotes, onOpenNote, onTakeNotes,
-  onUpdate, onMove, onDelete,
+  lecture, subject, subjects, idToken,
+  onUpdate, onMove, onDelete, onPractice,
 }: ExpandedLectureCardProps) {
   const [title, setTitle] = useState(lecture.title);
   const [priority, setPriority] = useState<Priority>(lecture.priority);
@@ -96,6 +93,12 @@ export default function ExpandedLectureCard({
               <ArrowRight className="h-3.5 w-3.5" />
             </button>
           )}
+          {onPractice && (
+            <button type="button" onClick={onPractice} className="btn btn-secondary flex items-center gap-1 text-xs" title="Practice this lecture">
+              <ListChecks className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Practice</span>
+            </button>
+          )}
           <button onClick={() => onDelete(lecture.id)} className={btnIconDanger} title="Delete lecture">
             <Trash2 className="h-4 w-4" />
           </button>
@@ -123,12 +126,6 @@ export default function ExpandedLectureCard({
           </div>
 
           <LecturePdfs lectureId={lecture.id} idToken={idToken} onPdfsChange={setPdfs} />
-
-          <LectureNotesSection
-            notes={lectureNotes}
-            onOpenNote={onOpenNote}
-            onTakeNotes={onTakeNotes}
-          />
         </div>
 
         <div>

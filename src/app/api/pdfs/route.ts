@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
-import { mapPdfFromDb, PDF_BUCKET, MAX_PDF_SIZE } from "@/lib/pdfs";
+import { isPdfBytes, mapPdfFromDb, PDF_BUCKET, MAX_PDF_SIZE, safePdfFileName } from "@/lib/pdfs";
 import { PDF_KINDS, PdfKind } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
@@ -51,12 +51,12 @@ export async function POST(request: NextRequest) {
 
     const bytes = Buffer.from(await file.arrayBuffer());
     // Check magic bytes rather than trusting the client-supplied MIME type.
-    if (!bytes.subarray(0, 5).toString("latin1").startsWith("%PDF-")) {
+    if (!isPdfBytes(bytes)) {
       return NextResponse.json({ error: "File is not a valid PDF" }, { status: 400 });
     }
 
     const id = crypto.randomUUID();
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-100) || "file.pdf";
+    const safeName = safePdfFileName(file.name);
     const path = `${userId}/${lectureId}/${kind}/${id}-${safeName}`;
 
     const storage = getSupabase().storage.from(PDF_BUCKET);

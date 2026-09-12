@@ -3,7 +3,7 @@
  *
  * Usage: node --env-file=.env.local scripts/setup-storage.mjs
  *
- * Creates the "pdfs" bucket (private, PDF-only, 20MB limit) and verifies
+ * Creates the "pdfs" bucket (private, PDF-only, 50MB limit — Supabase Free) and verifies
  * that public URL access is blocked while signed URLs work.
  */
 import { createClient } from "@supabase/supabase-js";
@@ -28,19 +28,19 @@ async function main() {
 
   const bucketConfig = {
     public: false,
-    fileSizeLimit: "20MB",
+    fileSizeLimit: "50MB",
     allowedMimeTypes: ["application/pdf"],
   };
 
   if (!existing) {
     const { error } = await supabase.storage.createBucket(BUCKET, bucketConfig);
     if (error) throw new Error(`createBucket failed: ${error.message}`);
-    console.log(`Created bucket "${BUCKET}" (private, PDF-only, 20MB limit)`);
+    console.log(`Created bucket "${BUCKET}" (private, PDF-only, 50MB limit)`);
   } else {
     // Ensure config matches even if the bucket pre-existed.
     const { error } = await supabase.storage.updateBucket(BUCKET, bucketConfig);
     if (error) throw new Error(`updateBucket failed: ${error.message}`);
-    console.log(`Bucket "${BUCKET}" already exists; config enforced (private, PDF-only, 20MB limit)`);
+    console.log(`Bucket "${BUCKET}" already exists; config enforced (private, PDF-only, 50MB limit)`);
   }
 
   // 2. Verify the access model with a throwaway file.

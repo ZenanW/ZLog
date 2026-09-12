@@ -1,7 +1,20 @@
 import { LecturePdf, PdfKind, Priority } from "@/lib/types";
 
 export const PDF_BUCKET = "pdfs";
+/** Lecture slides / tutorial sheets — keep these modest. */
 export const MAX_PDF_SIZE = 20 * 1024 * 1024;
+
+export function isPdfBytes(bytes: Buffer): boolean {
+  return bytes.subarray(0, 5).toString("latin1").startsWith("%PDF-");
+}
+
+export function safePdfFileName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-100) || "file.pdf";
+}
+
+export function pdfPathOwnedByUser(path: string, userId: string): boolean {
+  return path.startsWith(`${userId}/`) && !path.includes("..");
+}
 
 export function mapPdfFromDb(row: Record<string, unknown>): LecturePdf {
   return {

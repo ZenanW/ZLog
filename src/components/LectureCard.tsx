@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Trash2,
   AlertTriangle,
+  ListChecks,
 } from "lucide-react";
 import { Lecture, LectureStatus, Subject } from "@/lib/types";
 import { priorityTextClass } from "@/lib/ui";
@@ -15,13 +16,14 @@ interface LectureCardProps {
   lecture: Lecture;
   subject: Subject | undefined;
   onSelect: (lecture: Lecture) => void;
+  onPractice?: (lecture: Lecture) => void;
   onMove: (id: string, status: LectureStatus) => void;
   onDelete: (id: string) => void;
 }
 
 const statusFlow: LectureStatus[] = ["backlog", "in_progress", "completed"];
 
-export default function LectureCard({ lecture, subject, onSelect, onMove, onDelete }: LectureCardProps) {
+export default function LectureCard({ lecture, subject, onSelect, onPractice, onMove, onDelete }: LectureCardProps) {
   const currentIdx = statusFlow.indexOf(lecture.status);
   const canMoveForward = currentIdx < statusFlow.length - 1;
   const canMoveBack = currentIdx > 0;
@@ -67,6 +69,15 @@ export default function LectureCard({ lecture, subject, onSelect, onMove, onDele
         </button>
 
         <div className="ml-2 flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+          {onPractice && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onPractice(lecture); }}
+              className="btn-icon"
+              title="Practice this lecture"
+            >
+              <ListChecks className="h-3.5 w-3.5" />
+            </button>
+          )}
           {canMoveBack && (
             <button
               onClick={(e) => { e.stopPropagation(); onMove(lecture.id, statusFlow[currentIdx - 1]); }}

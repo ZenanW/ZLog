@@ -9,8 +9,8 @@ const sourceSerif = Source_Serif_4({
 });
 
 export const metadata: Metadata = {
-  title: "Backlog Track — Lecture & Notes Tracker",
-  description: "Keep track of your lecture backlog, take notes, and stay on top of your studies.",
+  title: "Backlog Track — Lecture & Exam Tracker",
+  description: "Keep track of your lecture backlog, exams, and stay on top of your studies.",
 };
 
 export default function RootLayout({

@@ -5,7 +5,8 @@ import { PDF_BUCKET } from "@/lib/pdfs";
 
 /**
  * Semester reset: deletes ALL of the caller's subjects, lectures, uploaded
- * PDFs (metadata rows + storage objects), exams, topics, and practice tests.
+ * PDFs (metadata rows + storage objects), practice question sets, exams,
+ * topics, and practice tests.
  */
 export async function DELETE(request: NextRequest) {
   try {
@@ -21,6 +22,15 @@ export async function DELETE(request: NextRequest) {
     if (pdfRows && pdfRows.length > 0) {
       await supabase.storage.from(PDF_BUCKET).remove(pdfRows.map((r) => r.path));
       await supabase.from("pdf_documents").delete().eq("user_id", userId);
+    }
+
+    // Best-effort: 007 may not have been run yet.
+    const { error: practiceError } = await supabase
+      .from("practice_sets")
+      .delete()
+      .eq("user_id", userId);
+    if (practiceError && !/schema cache|does not exist/i.test(practiceError.message)) {
+      return NextResponse.json({ error: `practice_sets: ${practiceError.message}` }, { status: 500 });
     }
 
     // Children before parents in case FKs lack ON DELETE CASCADE.
