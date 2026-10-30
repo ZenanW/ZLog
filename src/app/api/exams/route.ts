@@ -22,13 +22,19 @@ export async function POST(request: NextRequest) {
   try {
     const userId = await verifyToken(request);
     const body = await request.json();
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    if (typeof body.subjectId !== "string" || !body.subjectId) {
+      return NextResponse.json({ error: "Subject is required" }, { status: 400 });
+    }
 
     const { data, error } = await getSupabase()
       .from("exams")
       .insert({
         id: body.id,
         user_id: userId,
-        name: body.name,
+        subject_id: body.subjectId,
+        name,
         exam_date: body.examDate ?? null,
       })
       .select()

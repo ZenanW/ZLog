@@ -20,3 +20,4 @@ Next.js 16 app for tracking university lecture backlogs and exam prep. Uses Fire
 - Week-based lecture titles use helpers from `src/lib/weeks.ts` (`formatWeekTitle`, `parseWeekNumber`).
 - Icons come from `lucide-react` only.
 - All components are `"use client"` since the app is fully client-rendered inside `AuthGuard`.
+- **Never start the dev server.** Do not run `npm run dev`, `next dev`, or anything else that serves the app. The user starts and stops it. Tell them when a change is ready to try.

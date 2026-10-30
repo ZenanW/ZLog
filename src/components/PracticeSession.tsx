@@ -135,7 +135,7 @@ function QuestionCard({
           {question.kind === "mcq" && (
             <p className="flex items-center gap-1.5 text-sm" style={{ color: mcqCorrect ? "var(--active)" : "var(--alert)" }}>
               {mcqCorrect ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-              {mcqCorrect ? "That matches the slides." : "Not the answer from the slides."}
+              {mcqCorrect ? "That matches the materials." : "Not the answer from the materials."}
             </p>
           )}
           {question.kind === "short" && question.modelAnswer && (

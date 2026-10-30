@@ -28,9 +28,46 @@ export interface AppState {
   lectures: Lecture[];
 }
 
-export const PDF_KINDS = ["lecture_slides", "tutorial_sheet"] as const;
+export const PDF_KINDS = [
+  "lecture_slides",
+  "tutorial_sheet",
+  "tutorial_answers",
+  "lecture_transcript",
+] as const;
 
 export type PdfKind = (typeof PDF_KINDS)[number];
+
+export const PDF_KIND_LABELS: Record<PdfKind, string> = {
+  lecture_slides: "Slides",
+  tutorial_sheet: "Tutorial",
+  tutorial_answers: "Answers",
+  lecture_transcript: "Transcript",
+};
+
+export function isPdfDocumentKind(kind: PdfKind): boolean {
+  return kind !== "lecture_transcript";
+}
+
+export const MAX_PDF_SIZE = 20 * 1024 * 1024;
+export const MAX_TRANSCRIPT_SIZE = 5 * 1024 * 1024;
+
+export function maxSizeForKind(kind: PdfKind): number {
+  return isPdfDocumentKind(kind) ? MAX_PDF_SIZE : MAX_TRANSCRIPT_SIZE;
+}
+
+export function contentTypeForKind(kind: PdfKind): string {
+  return isPdfDocumentKind(kind) ? "application/pdf" : "text/plain";
+}
+
+export function acceptForKind(kind: PdfKind): string {
+  return isPdfDocumentKind(kind) ? "application/pdf,.pdf" : ".txt,text/plain";
+}
+
+export function kindFileError(kind: PdfKind): string {
+  return isPdfDocumentKind(kind)
+    ? "File must be a PDF."
+    : "Transcripts must be a .txt file.";
+}
 
 export interface LecturePdf {
   id: string;
@@ -48,6 +85,7 @@ export interface LecturePdf {
 
 export interface Exam {
   id: string;
+  subjectId: string | null;
   name: string;
   examDate: string | null;
   createdAt: string;
@@ -60,6 +98,30 @@ export interface ExamTopic {
   name: string;
   revised: boolean;
   createdAt: string;
+}
+
+export const ASSIGNMENT_STATUSES = ["not_started", "in_progress", "submitted"] as const;
+
+export type AssignmentStatus = (typeof ASSIGNMENT_STATUSES)[number];
+
+export const ASSIGNMENT_STATUS_LABELS: Record<AssignmentStatus, string> = {
+  not_started: "Not started",
+  in_progress: "In progress",
+  submitted: "Submitted",
+};
+
+export function isAssignmentStatus(value: unknown): value is AssignmentStatus {
+  return typeof value === "string" && (ASSIGNMENT_STATUSES as readonly string[]).includes(value);
+}
+
+export interface Assignment {
+  id: string;
+  subjectId: string;
+  name: string;
+  dueDate: string | null;
+  status: AssignmentStatus;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PracticeTest {

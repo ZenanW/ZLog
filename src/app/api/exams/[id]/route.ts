@@ -9,8 +9,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const body = await request.json();
 
     const dbUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if (body.name !== undefined) dbUpdates.name = body.name;
+    if (body.name !== undefined) {
+      const name = typeof body.name === "string" ? body.name.trim() : "";
+      if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
+      dbUpdates.name = name;
+    }
     if (body.examDate !== undefined) dbUpdates.exam_date = body.examDate;
+    if (body.subjectId !== undefined) {
+      if (typeof body.subjectId !== "string" || !body.subjectId) {
+        return NextResponse.json({ error: "Subject is required" }, { status: 400 });
+      }
+      dbUpdates.subject_id = body.subjectId;
+    }
 
     const { data, error } = await getSupabase()
       .from("exams")

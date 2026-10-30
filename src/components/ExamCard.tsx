@@ -3,11 +3,13 @@
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { GraduationCap, Calendar, CheckSquare, TrendingUp } from "lucide-react";
-import { Exam, ExamTopic, PracticeTest } from "@/lib/types";
+import { Exam, ExamTopic, PracticeTest, Subject } from "@/lib/types";
 import { countdownBadge, microLabel } from "@/lib/ui";
+import SubjectBadge from "./SubjectBadge";
 
 interface ExamCardProps {
   exam: Exam;
+  subject: Subject | null;
   topics: ExamTopic[];
   practiceTests: PracticeTest[];
   onSelect: (exam: Exam) => void;
@@ -18,7 +20,7 @@ function daysUntil(dateStr: string | null): number | null {
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
-export default function ExamCard({ exam, topics, practiceTests, onSelect }: ExamCardProps) {
+export default function ExamCard({ exam, subject, topics, practiceTests, onSelect }: ExamCardProps) {
   const days = daysUntil(exam.examDate);
   const badge = countdownBadge(days);
   const revisedCount = topics.filter((t) => t.revised).length;
@@ -48,6 +50,12 @@ export default function ExamCard({ exam, topics, practiceTests, onSelect }: Exam
           </span>
         )}
       </div>
+
+      {subject && (
+        <div className="mb-3">
+          <SubjectBadge name={subject.name} color={subject.color} />
+        </div>
+      )}
 
       {exam.examDate && (
         <div className="mb-3 flex items-center gap-1.5 text-xs" style={{ color: "var(--muted-foreground)" }}>

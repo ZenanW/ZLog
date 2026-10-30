@@ -6,15 +6,17 @@ import { format } from "date-fns";
 import {
   X, Save, Calendar, Plus, Trash2, CheckSquare, Square, ClipboardList, GraduationCap, CalendarRange,
 } from "lucide-react";
-import { Exam, ExamTopic, PracticeTest } from "@/lib/types";
+import { Exam, ExamTopic, PracticeTest, Subject } from "@/lib/types";
 import { WEEK_NUMBERS, formatWeekTitle, parseWeekNumber } from "@/lib/weeks";
 import { btnIcon, btnIconDanger, btnPrimary, btnSecondary, countdownBadge, filterActive, filterInactive, input, microLabel } from "@/lib/ui";
+import SubjectBadge from "./SubjectBadge";
 
 interface ExamDetailProps {
   exam: Exam;
+  subjects: Subject[];
   topics: ExamTopic[];
   practiceTests: PracticeTest[];
-  onUpdateExam: (id: string, updates: Partial<Pick<Exam, "name" | "examDate">>) => void;
+  onUpdateExam: (id: string, updates: Partial<Pick<Exam, "name" | "examDate" | "subjectId">>) => void;
   onDeleteExam: (id: string) => void;
   onAddTopic: (examId: string, name: string) => void;
   onToggleTopic: (examId: string, topicId: string) => void;
@@ -30,15 +32,20 @@ function daysUntil(dateStr: string | null): number | null {
 }
 
 export default function ExamDetail({
-  exam, topics, practiceTests,
+  exam, subjects, topics, practiceTests,
   onUpdateExam, onDeleteExam,
   onAddTopic, onToggleTopic, onDeleteTopic,
   onAddPracticeTest, onDeletePracticeTest,
   onClose,
 }: ExamDetailProps) {
   const [name, setName] = useState(exam.name);
+  const [subjectId, setSubjectId] = useState(exam.subjectId ?? "");
   const [examDate, setExamDate] = useState(exam.examDate?.split("T")[0] ?? "");
-  const hasChanges = name !== exam.name || examDate !== (exam.examDate?.split("T")[0] ?? "");
+  const hasChanges =
+    name !== exam.name ||
+    subjectId !== (exam.subjectId ?? "") ||
+    examDate !== (exam.examDate?.split("T")[0] ?? "");
+  const canSave = hasChanges && !!name.trim() && !!subjectId;
 
   const [newTopic, setNewTopic] = useState("");
   const [showWeekPicker, setShowWeekPicker] = useState(false);
@@ -50,8 +57,10 @@ export default function ExamDetail({
   const [testNotes, setTestNotes] = useState("");
 
   const handleSave = () => {
+    if (!name.trim() || !subjectId) return;
     onUpdateExam(exam.id, {
       name: name.trim(),
+      subjectId,
       examDate: examDate || null,
     });
   };
@@ -145,6 +154,26 @@ export default function ExamDetail({
               style={{ color: "var(--foreground)" }}
               placeholder="Exam name..."
             />
+            <div>
+              <label className={`${microLabel} mb-1.5 block`}>Subject</label>
+              {subjects.length === 0 ? (
+                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                  Add subjects on the Lectures tab first.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {subjects.map((subject) => (
+                    <SubjectBadge
+                      key={subject.id}
+                      name={subject.name}
+                      color={subject.color}
+                      active={subjectId === subject.id}
+                      onClick={() => setSubjectId(subject.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
             <div>
               <label className={`${microLabel} mb-1 flex items-center gap-1`}>
                 <Calendar className="h-3 w-3" /> Exam Date
@@ -378,10 +407,13 @@ export default function ExamDetail({
 
           {/* Footer actions */}
           <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: "color-mix(in oklch, var(--border) 60%, transparent)" }}>
-            {hasChanges && (
+            {canSave && (
               <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={handleSave} className={btnPrimary}>
                 <Save className="h-4 w-4" /> Save Changes
               </motion.button>
+            )}
+            {hasChanges && !subjectId && (
+              <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>Choose a subject to save.</p>
             )}
             {!hasChanges && <div />}
             <button

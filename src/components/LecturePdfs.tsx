@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { FileText, Upload, ExternalLink, Trash2, Loader2, Sparkles } from "lucide-react";
-import { LecturePdf, PdfKind } from "@/lib/types";
+import { acceptForKind, isPdfDocumentKind, kindFileError, LecturePdf, maxSizeForKind, PDF_KIND_LABELS, PDF_KINDS, PdfKind } from "@/lib/types";
 import { btnIcon, btnIconDanger, btnSecondary, filterActive, filterInactive, microLabel, priorityChip } from "@/lib/ui";
 
 interface LecturePdfsProps {
@@ -11,12 +11,7 @@ interface LecturePdfsProps {
   onPdfsChange?: (pdfs: LecturePdf[]) => void;
 }
 
-const kindLabels: Record<PdfKind, string> = {
-  lecture_slides: "Slides",
-  tutorial_sheet: "Tutorial",
-};
-
-const MAX_SIZE = 20 * 1024 * 1024;
+const kindLabels = PDF_KIND_LABELS;
 
 function formatSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -26,6 +21,12 @@ function formatSize(bytes: number): string {
 function friendlyError(message: string): string {
   if (/pdf_documents/.test(message) && /schema cache|does not exist/i.test(message)) {
     return "Database table missing — run scripts/migrations/001_pdf_documents.sql in the Supabase SQL editor.";
+  }
+  if (/pdf_documents/.test(message) && /kind|check constraint/i.test(message)) {
+    return "Database out of date — run scripts/migrations/008_weekly_content_kinds.sql in the Supabase SQL editor.";
+  }
+  if (/mime type .* is not supported/i.test(message)) {
+    return "Storage bucket still PDF-only — re-run: node --env-file=.env.local scripts/setup-storage.mjs";
   }
   return message;
 }
@@ -69,12 +70,15 @@ export default function LecturePdfs({ lectureId, idToken, onPdfsChange }: Lectur
   const handleFileSelected = async (file: File) => {
     if (!idToken) return;
     setError(null);
-    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-      setError("Only PDF files are allowed.");
+    const lower = file.name.toLowerCase();
+    const expectsPdf = isPdfDocumentKind(kind);
+    if (expectsPdf ? !lower.endsWith(".pdf") : !lower.endsWith(".txt")) {
+      setError(kindFileError(kind));
       return;
     }
-    if (file.size > MAX_SIZE) {
-      setError("File exceeds the 20MB limit.");
+    if (file.size > maxSizeForKind(kind)) {
+      const limitMb = Math.round(maxSizeForKind(kind) / (1024 * 1024));
+      setError(`File exceeds the ${limitMb}MB limit.`);
       return;
     }
 
@@ -161,12 +165,12 @@ export default function LecturePdfs({ lectureId, idToken, onPdfsChange }: Lectur
   return (
     <div>
       <label className={`${microLabel} mb-1 flex items-center gap-1`}>
-        <FileText className="h-3 w-3" /> PDFs
+        <FileText className="h-3 w-3" /> Weekly files
       </label>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1">
-          {(Object.keys(kindLabels) as PdfKind[]).map((k) => (
+        <div className="flex flex-wrap gap-1">
+          {PDF_KINDS.map((k) => (
             <button
               key={k}
               onClick={() => setKind(k)}
@@ -184,12 +188,14 @@ export default function LecturePdfs({ lectureId, idToken, onPdfsChange }: Lectur
           className={btnSecondary}
         >
           {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-          {uploading ? "Uploading..." : `Upload ${kindLabels[kind]} PDF`}
+          {uploading
+            ? "Uploading..."
+            : `Upload ${kindLabels[kind]} ${isPdfDocumentKind(kind) ? "PDF" : ".txt"}`}
         </button>
         <input
           ref={fileInputRef}
           type="file"
-          accept="application/pdf,.pdf"
+          accept={acceptForKind(kind)}
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -204,11 +210,12 @@ export default function LecturePdfs({ lectureId, idToken, onPdfsChange }: Lectur
       )}
 
       {loading ? (
-        <p className="mt-2 text-xs" style={{ color: "var(--muted-foreground)" }}>Loading PDFs...</p>
+        <p className="mt-2 text-xs" style={{ color: "var(--muted-foreground)" }}>Loading files...</p>
       ) : pdfs.length > 0 ? (
         <div className="mt-2 space-y-1.5">
           {pdfs.map((pdf) => {
             const isAnalyzing = analyzing.has(pdf.id);
+            const canAnalyze = isPdfDocumentKind(pdf.kind);
             return (
               <div key={pdf.id} className="panel px-3 py-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -221,18 +228,20 @@ export default function LecturePdfs({ lectureId, idToken, onPdfsChange }: Lectur
                     {formatSize(pdf.size)}
                   </span>
                   <div className="ml-auto flex shrink-0 items-center gap-1">
-                    <button
-                      onClick={() => analyzePdf(pdf)}
-                      disabled={isAnalyzing}
-                      className={btnIcon}
-                      title={pdf.analyzedAt ? "Re-analyze with AI" : "Analyze with AI"}
-                    >
-                      {isAnalyzing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                    </button>
-                    <button onClick={() => openPdf(pdf)} className={btnIcon} title="Open PDF">
+                    {canAnalyze && (
+                      <button
+                        onClick={() => analyzePdf(pdf)}
+                        disabled={isAnalyzing}
+                        className={btnIcon}
+                        title={pdf.analyzedAt ? "Re-analyze with AI" : "Analyze with AI"}
+                      >
+                        {isAnalyzing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                      </button>
+                    )}
+                    <button onClick={() => openPdf(pdf)} className={btnIcon} title={canAnalyze ? "Open PDF" : "Open transcript"}>
                       <ExternalLink className="h-3.5 w-3.5" />
                     </button>
-                    <button onClick={() => deletePdf(pdf)} className={btnIconDanger} title="Delete PDF">
+                    <button onClick={() => deletePdf(pdf)} className={btnIconDanger} title="Delete file">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -275,7 +284,7 @@ export default function LecturePdfs({ lectureId, idToken, onPdfsChange }: Lectur
         </div>
       ) : (
         <p className="mt-2 text-xs" style={{ color: "var(--muted-foreground)" }}>
-          No PDFs yet. Upload lecture slides or a tutorial sheet, then analyze with AI.
+          No files yet. Upload slides, a tutorial, answers, or a transcript.
         </p>
       )}
     </div>

@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
-import { isPdfBytes, mapPdfFromDb, PDF_BUCKET, MAX_PDF_SIZE, safePdfFileName } from "@/lib/pdfs";
+import {
+  contentTypeForKind,
+  fileMatchesKind,
+  kindFileError,
+  mapPdfFromDb,
+  maxSizeForKind,
+  PDF_BUCKET,
+  safePdfFileName,
+} from "@/lib/pdfs";
 import { PDF_KINDS, PdfKind } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
@@ -43,25 +51,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "lectureId is required" }, { status: 400 });
     }
     if (typeof kind !== "string" || !PDF_KINDS.includes(kind as PdfKind)) {
-      return NextResponse.json({ error: "kind must be lecture_slides or tutorial_sheet" }, { status: 400 });
+      return NextResponse.json(
+        { error: `kind must be one of: ${PDF_KINDS.join(", ")}` },
+        { status: 400 }
+      );
     }
-    if (file.size > MAX_PDF_SIZE) {
-      return NextResponse.json({ error: "File exceeds the 20MB limit" }, { status: 400 });
+    const pdfKind = kind as PdfKind;
+    const maxSize = maxSizeForKind(pdfKind);
+    if (file.size > maxSize) {
+      const limitMb = Math.round(maxSize / (1024 * 1024));
+      return NextResponse.json({ error: `File exceeds the ${limitMb}MB limit` }, { status: 400 });
     }
 
     const bytes = Buffer.from(await file.arrayBuffer());
-    // Check magic bytes rather than trusting the client-supplied MIME type.
-    if (!isPdfBytes(bytes)) {
-      return NextResponse.json({ error: "File is not a valid PDF" }, { status: 400 });
+    // Check bytes and extension rather than trusting the client-supplied MIME type.
+    if (!fileMatchesKind(pdfKind, file.name, bytes)) {
+      return NextResponse.json({ error: kindFileError(pdfKind) }, { status: 400 });
     }
 
     const id = crypto.randomUUID();
     const safeName = safePdfFileName(file.name);
-    const path = `${userId}/${lectureId}/${kind}/${id}-${safeName}`;
+    const path = `${userId}/${lectureId}/${pdfKind}/${id}-${safeName}`;
 
     const storage = getSupabase().storage.from(PDF_BUCKET);
     const { error: uploadError } = await storage.upload(path, bytes, {
-      contentType: "application/pdf",
+      contentType: contentTypeForKind(pdfKind),
     });
     if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
 
@@ -71,7 +85,7 @@ export async function POST(request: NextRequest) {
         id,
         user_id: userId,
         lecture_id: lectureId,
-        kind,
+        kind: pdfKind,
         name: safeName,
         path,
         size: file.size,

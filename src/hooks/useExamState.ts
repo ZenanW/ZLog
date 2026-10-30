@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { Exam, ExamTopic, PracticeTest } from "@/lib/types";
+import { Assignment, AssignmentStatus, Exam, ExamTopic, PracticeTest, isAssignmentStatus } from "@/lib/types";
 
 function mapExamFromDb(row: Record<string, unknown>): Exam {
   return {
     id: row.id as string,
+    subjectId: (row.subject_id as string) ?? null,
     name: row.name as string,
     examDate: (row.exam_date as string) ?? null,
     createdAt: row.created_at as string,
@@ -21,6 +22,18 @@ function mapTopicFromDb(row: Record<string, unknown>): ExamTopic {
     name: row.name as string,
     revised: row.revised as boolean,
     createdAt: row.created_at as string,
+  };
+}
+
+function mapAssignmentFromDb(row: Record<string, unknown>): Assignment {
+  return {
+    id: row.id as string,
+    subjectId: row.subject_id as string,
+    name: row.name as string,
+    dueDate: (row.due_date as string) ?? null,
+    status: isAssignmentStatus(row.status) ? row.status : "not_started",
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
   };
 }
 
@@ -56,6 +69,7 @@ async function apiFetch(path: string, token: string, options?: RequestInit) {
 export function useExamState(idToken: string | null) {
   const [exams, setExams] = useState<Exam[]>([]);
   const [topics, setTopics] = useState<ExamTopic[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [practiceTests, setPracticeTests] = useState<PracticeTest[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -65,19 +79,33 @@ export function useExamState(idToken: string | null) {
 
     async function fetchAll() {
       try {
+        const assignmentsPromise = apiFetch("/api/assignments", idToken!).catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : "";
+          if (/schema cache|does not exist/i.test(message)) return [];
+          throw err;
+        });
+
         const examsData = await apiFetch("/api/exams", idToken!);
         if (cancelled) return;
         const mapped: Exam[] = examsData.map(mapExamFromDb);
         setExams(mapped);
 
         if (mapped.length > 0) {
-          const [allTopics, allTests] = await Promise.all([
+          const [allTopics, allTests, assignmentRows] = await Promise.all([
             Promise.all(mapped.map((e: Exam) => apiFetch(`/api/exams/${e.id}/topics`, idToken!))),
             Promise.all(mapped.map((e: Exam) => apiFetch(`/api/exams/${e.id}/practice-tests`, idToken!))),
+            assignmentsPromise,
           ]);
           if (cancelled) return;
           setTopics(allTopics.flat().map(mapTopicFromDb));
           setPracticeTests(allTests.flat().map(mapPracticeTestFromDb));
+          setAssignments(assignmentRows.map(mapAssignmentFromDb));
+        } else {
+          const assignmentRows = await assignmentsPromise;
+          if (cancelled) return;
+          setTopics([]);
+          setPracticeTests([]);
+          setAssignments(assignmentRows.map(mapAssignmentFromDb));
         }
       } finally {
         if (!cancelled) setLoaded(true);
@@ -91,16 +119,16 @@ export function useExamState(idToken: string | null) {
   // --- Exams ---
 
   const addExam = useCallback(
-    async (name: string, examDate: string | null) => {
-      if (!idToken) return;
+    async (name: string, examDate: string | null, subjectId: string) => {
+      if (!idToken || !subjectId) return;
       const id = uuidv4();
       const now = new Date().toISOString();
-      const optimistic: Exam = { id, name, examDate, createdAt: now, updatedAt: now };
+      const optimistic: Exam = { id, subjectId, name, examDate, createdAt: now, updatedAt: now };
       setExams((e) => [...e, optimistic]);
       try {
         await apiFetch("/api/exams", idToken, {
           method: "POST",
-          body: JSON.stringify({ id, name, examDate }),
+          body: JSON.stringify({ id, name, examDate, subjectId }),
         });
       } catch {
         setExams((e) => e.filter((ex) => ex.id !== id));
@@ -111,7 +139,7 @@ export function useExamState(idToken: string | null) {
   );
 
   const updateExam = useCallback(
-    async (id: string, updates: Partial<Pick<Exam, "name" | "examDate">>) => {
+    async (id: string, updates: Partial<Pick<Exam, "name" | "examDate" | "subjectId">>) => {
       if (!idToken) return;
       setExams((e) =>
         e.map((ex) => (ex.id === id ? { ...ex, ...updates, updatedAt: new Date().toISOString() } : ex))
@@ -203,6 +231,85 @@ export function useExamState(idToken: string | null) {
     [idToken, topics]
   );
 
+  // --- Assignments ---
+
+  const addAssignment = useCallback(
+    async (data: { name: string; subjectId: string; dueDate?: string | null; status?: AssignmentStatus }) => {
+      if (!idToken || !data.subjectId) return;
+      const name = data.name.trim();
+      if (!name) return;
+      const id = uuidv4();
+      const now = new Date().toISOString();
+      const status = data.status ?? "not_started";
+      const optimistic: Assignment = {
+        id,
+        subjectId: data.subjectId,
+        name,
+        dueDate: data.dueDate ?? null,
+        status,
+        createdAt: now,
+        updatedAt: now,
+      };
+      setAssignments((a) => [...a, optimistic]);
+      try {
+        await apiFetch("/api/assignments", idToken, {
+          method: "POST",
+          body: JSON.stringify({ id, name, subjectId: data.subjectId, dueDate: data.dueDate ?? null, status }),
+        });
+      } catch {
+        setAssignments((a) => a.filter((item) => item.id !== id));
+      }
+      return optimistic;
+    },
+    [idToken]
+  );
+
+  const updateAssignment = useCallback(
+    async (
+      assignmentId: string,
+      updates: Partial<Pick<Assignment, "name" | "subjectId" | "dueDate" | "status">>
+    ) => {
+      if (!idToken) return;
+      if (updates.name !== undefined && !updates.name.trim()) return;
+      if (updates.subjectId !== undefined && !updates.subjectId) return;
+      const nextUpdates = {
+        ...updates,
+        ...(updates.name !== undefined ? { name: updates.name.trim() } : {}),
+      };
+      setAssignments((a) =>
+        a.map((item) =>
+          item.id === assignmentId
+            ? { ...item, ...nextUpdates, updatedAt: new Date().toISOString() }
+            : item
+        )
+      );
+      try {
+        await apiFetch(`/api/assignments/${assignmentId}`, idToken, {
+          method: "PATCH",
+          body: JSON.stringify(nextUpdates),
+        });
+      } catch {
+        const data = await apiFetch("/api/assignments", idToken);
+        setAssignments(data.map(mapAssignmentFromDb));
+      }
+    },
+    [idToken]
+  );
+
+  const deleteAssignment = useCallback(
+    async (assignmentId: string) => {
+      if (!idToken) return;
+      const prev = [...assignments];
+      setAssignments((a) => a.filter((item) => item.id !== assignmentId));
+      try {
+        await apiFetch(`/api/assignments/${assignmentId}`, idToken, { method: "DELETE" });
+      } catch {
+        setAssignments(prev);
+      }
+    },
+    [idToken, assignments]
+  );
+
   // --- Practice Tests ---
 
   const addPracticeTest = useCallback(
@@ -272,6 +379,7 @@ export function useExamState(idToken: string | null) {
   const clearLocal = useCallback(() => {
     setExams([]);
     setTopics([]);
+    setAssignments([]);
     setPracticeTests([]);
   }, []);
 
@@ -308,6 +416,7 @@ export function useExamState(idToken: string | null) {
   return {
     exams,
     topics,
+    assignments,
     practiceTests,
     loaded,
     examStats,
@@ -317,6 +426,9 @@ export function useExamState(idToken: string | null) {
     addTopic,
     toggleTopic,
     deleteTopic,
+    addAssignment,
+    updateAssignment,
+    deleteAssignment,
     addPracticeTest,
     updatePracticeTest,
     deletePracticeTest,

@@ -6,7 +6,7 @@ import { PDF_BUCKET } from "@/lib/pdfs";
 /**
  * Semester reset: deletes ALL of the caller's subjects, lectures, uploaded
  * PDFs (metadata rows + storage objects), practice question sets, exams,
- * topics, and practice tests.
+ * topics, practice tests, and assignments.
  */
 export async function DELETE(request: NextRequest) {
   try {
@@ -31,6 +31,14 @@ export async function DELETE(request: NextRequest) {
       .eq("user_id", userId);
     if (practiceError && !/schema cache|does not exist/i.test(practiceError.message)) {
       return NextResponse.json({ error: `practice_sets: ${practiceError.message}` }, { status: 500 });
+    }
+
+    const { error: assignmentError } = await supabase
+      .from("assignments")
+      .delete()
+      .eq("user_id", userId);
+    if (assignmentError && !/schema cache|does not exist/i.test(assignmentError.message)) {
+      return NextResponse.json({ error: `assignments: ${assignmentError.message}` }, { status: 500 });
     }
 
     // Children before parents in case FKs lack ON DELETE CASCADE.

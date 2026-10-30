@@ -8,8 +8,9 @@ import { useAppState } from "@/hooks/useAppState";
 import { useExamState } from "@/hooks/useExamState";
 import { usePracticeState } from "@/hooks/usePracticeState";
 import { useTheme } from "@/hooks/useTheme";
-import { Exam, Lecture, LectureStatus, Priority } from "@/lib/types";
+import { Assignment, Exam, Lecture, LectureStatus, Priority } from "@/lib/types";
 import { compareLecturesByUnitAndWeek, filterBacklogTrackedLectures } from "@/lib/lectures";
+import { buildTodayItems, TodayItem } from "@/lib/today";
 import AuthGuard from "@/components/AuthGuard";
 import ExamStatsBar from "@/components/ExamStatsBar";
 import SubjectManager from "@/components/SubjectManager";
@@ -22,7 +23,10 @@ import KanbanView from "@/components/KanbanView";
 import ExamList from "@/components/ExamList";
 import ExamCard from "@/components/ExamCard";
 import ExamDetail from "@/components/ExamDetail";
+import AssignmentCard from "@/components/AssignmentCard";
+import AssignmentDetail from "@/components/AssignmentDetail";
 import PracticeTab from "@/components/PracticeTab";
+import TodayList from "@/components/TodayList";
 
 type AppTab = "lectures" | "exams" | "practice";
 
@@ -35,6 +39,7 @@ export default function AppShell() {
   const [appTab, setAppTab] = useState<AppTab>("lectures");
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<LectureStatus | "all">("all");
   const [priorityFilter, setPriorityFilter] = useState<Priority | "all">("all");
@@ -85,6 +90,49 @@ export default function AppShell() {
     ? examState.exams.find((e) => e.id === selectedExam.id) ?? null
     : null;
 
+  const currentSelectedAssignment = selectedAssignment
+    ? examState.assignments.find((a) => a.id === selectedAssignment.id) ?? null
+    : null;
+
+  const openExam = (exam: Exam) => {
+    setSelectedExam(exam);
+    setSelectedAssignment(null);
+  };
+
+  const openAssignment = (assignment: Assignment) => {
+    setSelectedAssignment(assignment);
+    setSelectedExam(null);
+  };
+
+  const todayItems = useMemo(
+    () => buildTodayItems({
+      assignments: examState.assignments,
+      exams: examState.exams,
+      lectures: backlogLectures,
+      subjects: app.subjects,
+    }),
+    [examState.assignments, examState.exams, backlogLectures, app.subjects]
+  );
+
+  const openTodayItem = (item: TodayItem) => {
+    if (item.kind === "assignment") {
+      const assignment = examState.assignments.find((entry) => entry.id === item.id);
+      if (assignment) openAssignment(assignment);
+      return;
+    }
+    if (item.kind === "exam") {
+      const exam = examState.exams.find((entry) => entry.id === item.id);
+      if (exam) openExam(exam);
+      return;
+    }
+    const lecture = backlogLectures.find((entry) => entry.id === item.id);
+    if (!lecture) return;
+    setSelectedLecture(lecture);
+    setSelectedExam(null);
+    setSelectedAssignment(null);
+    setAppTab("lectures");
+  };
+
   const topicProgress = useMemo(() => {
     const result: Record<string, { revised: number; total: number }> = {};
     for (const exam of examState.exams) {
@@ -134,10 +182,10 @@ export default function AppShell() {
                     className={`flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium transition-all sm:px-2.5 ${
                       appTab === "exams" ? "chip-selected" : "chip"
                     }`}
-                    title="Exams"
+                    title="Exams/Assignments"
                   >
                     <GraduationCap className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Exams</span>
+                    <span className="hidden sm:inline">Exams/Assignments</span>
                   </button>
                   <button
                     onClick={() => setAppTab("practice")}
@@ -159,6 +207,7 @@ export default function AppShell() {
                       practiceState.clearLocal();
                       setSelectedLecture(null);
                       setSelectedExam(null);
+                      setSelectedAssignment(null);
                       setPracticeJump(null);
                     }
                     return ok;
@@ -288,24 +337,38 @@ export default function AppShell() {
                   <ExamStatsBar {...examState.examStats} />
                 </div>
 
+                <TodayList items={todayItems} onOpen={openTodayItem} />
+
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
                   <aside>
                     <ExamList
                       exams={examState.exams}
+                      assignments={examState.assignments}
+                      subjects={app.subjects}
                       selectedExamId={selectedExam?.id ?? null}
-                      onSelect={setSelectedExam}
-                      onAdd={examState.addExam}
-                      onDelete={examState.deleteExam}
+                      selectedAssignmentId={selectedAssignment?.id ?? null}
+                      onSelectExam={openExam}
+                      onSelectAssignment={openAssignment}
+                      onAddExam={examState.addExam}
+                      onAddAssignment={examState.addAssignment}
+                      onDeleteExam={(id) => {
+                        examState.deleteExam(id);
+                        if (selectedExam?.id === id) setSelectedExam(null);
+                      }}
+                      onDeleteAssignment={(id) => {
+                        examState.deleteAssignment(id);
+                        if (selectedAssignment?.id === id) setSelectedAssignment(null);
+                      }}
                       topicProgress={topicProgress}
                     />
                   </aside>
 
                   <section>
-                    {examState.exams.length === 0 ? (
+                    {examState.exams.length === 0 && examState.assignments.length === 0 ? (
                       <div className="empty-state py-16">
                         <GraduationCap className="mx-auto mb-3 h-10 w-10" style={{ color: "var(--muted-foreground)" }} />
                         <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-                          No exams yet. Add one from the sidebar to start tracking.
+                          No exams or assignments yet. Add one from the sidebar.
                         </p>
                       </div>
                     ) : (
@@ -315,9 +378,18 @@ export default function AppShell() {
                             <ExamCard
                               key={exam.id}
                               exam={exam}
+                              subject={app.subjects.find((s) => s.id === exam.subjectId) ?? null}
                               topics={examState.getTopicsForExam(exam.id)}
                               practiceTests={examState.getTestsForExam(exam.id)}
-                              onSelect={setSelectedExam}
+                              onSelect={openExam}
+                            />
+                          ))}
+                          {examState.assignments.map((assignment) => (
+                            <AssignmentCard
+                              key={assignment.id}
+                              assignment={assignment}
+                              subject={app.subjects.find((s) => s.id === assignment.subjectId) ?? null}
+                              onSelect={openAssignment}
                             />
                           ))}
                         </AnimatePresence>
@@ -360,7 +432,9 @@ export default function AppShell() {
             )}
             {currentSelectedExam && appTab === "exams" && (
               <ExamDetail
+                key={currentSelectedExam.id}
                 exam={currentSelectedExam}
+                subjects={app.subjects}
                 topics={examState.getTopicsForExam(currentSelectedExam.id)}
                 practiceTests={examState.getTestsForExam(currentSelectedExam.id)}
                 onUpdateExam={examState.updateExam}
@@ -371,6 +445,16 @@ export default function AppShell() {
                 onAddPracticeTest={examState.addPracticeTest}
                 onDeletePracticeTest={examState.deletePracticeTest}
                 onClose={() => setSelectedExam(null)}
+              />
+            )}
+            {currentSelectedAssignment && appTab === "exams" && (
+              <AssignmentDetail
+                key={currentSelectedAssignment.id}
+                assignment={currentSelectedAssignment}
+                subjects={app.subjects}
+                onUpdate={examState.updateAssignment}
+                onDelete={examState.deleteAssignment}
+                onClose={() => setSelectedAssignment(null)}
               />
             )}
           </AnimatePresence>

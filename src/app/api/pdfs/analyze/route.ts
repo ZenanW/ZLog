@@ -8,7 +8,7 @@ const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const DEFAULT_MODEL = "claude-sonnet-5";
 
 const PROMPT = `You are helping a university student triage their study backlog.
-The attached PDF is either lecture slides or a tutorial sheet.
+The attached PDF is lecture slides, a tutorial sheet, or tutorial answers.
 
 Respond with ONLY a JSON object (no markdown fences, no prose) in this exact shape:
 {
@@ -71,6 +71,9 @@ export async function POST(request: NextRequest) {
     .single();
   if (fetchError || !row) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (row.kind === "lecture_transcript") {
+    return NextResponse.json({ error: "AI analysis is for PDFs, not transcripts." }, { status: 400 });
   }
 
   const { data: blob, error: downloadError } = await supabase.storage

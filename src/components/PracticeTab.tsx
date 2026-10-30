@@ -59,7 +59,7 @@ export default function PracticeTab({
 }: PracticeTabProps) {
   const [picking, setPicking] = useState(!jumpLectureId);
   const [selectedLectureId, setSelectedLectureId] = useState<string | null>(jumpLectureId ?? null);
-  const [slideCheck, setSlideCheck] = useState<{ lectureId: string; hasSlides: boolean } | null>(null);
+  const [materialCheck, setMaterialCheck] = useState<{ lectureId: string; hasMaterials: boolean } | null>(null);
   const [appliedJump, setAppliedJump] = useState(0);
 
   if (jumpLectureId && jumpNonce !== appliedJump) {
@@ -73,7 +73,7 @@ export default function PracticeTab({
     : null;
   const subject = lecture ? subjects.find((s) => s.id === lecture.subjectId) : undefined;
   const practiceSet = lecture ? getSetForLecture(lecture.id) : null;
-  const hasSlides = lecture && slideCheck?.lectureId === lecture.id ? slideCheck.hasSlides : null;
+  const hasMaterials = lecture && materialCheck?.lectureId === lecture.id ? materialCheck.hasMaterials : null;
   const generating = Boolean(lecture && generatingLectureId === lecture.id);
 
   useEffect(() => {
@@ -89,11 +89,11 @@ export default function PracticeTab({
       })
       .then((pdfs) => {
         if (!cancelled) {
-          setSlideCheck({ lectureId, hasSlides: pdfs.some((p) => p.kind === "lecture_slides") });
+          setMaterialCheck({ lectureId, hasMaterials: pdfs.length > 0 });
         }
       })
       .catch(() => {
-        if (!cancelled) setSlideCheck({ lectureId, hasSlides: false });
+        if (!cancelled) setMaterialCheck({ lectureId, hasMaterials: false });
       });
     return () => {
       cancelled = true;
@@ -158,36 +158,36 @@ export default function PracticeTab({
             <ListChecks className="mx-auto mb-3 h-10 w-10" style={{ color: "var(--muted-foreground)" }} />
             <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
               {lectures.length === 0
-                ? "Add a lecture on the Lectures tab, upload slides, then generate a practice set here."
+                ? "Add a lecture on the Lectures tab, upload weekly files, then generate a practice set here."
                 : "Pick a lecture to generate or continue a practice set."}
             </p>
           </div>
-        ) : hasSlides === null ? (
+        ) : hasMaterials === null ? (
           <div className="empty-state py-16">
             <div
               className="mx-auto h-8 w-8 animate-spin rounded-full border-2"
               style={{ borderColor: "var(--border)", borderTopColor: "var(--foreground)" }}
             />
           </div>
-        ) : !hasSlides ? (
+        ) : !hasMaterials ? (
           <div className="empty-state py-16">
             <ListChecks className="mx-auto mb-3 h-10 w-10" style={{ color: "var(--muted-foreground)" }} />
             <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-              This lecture has no slides yet. Open it on the Lectures tab, upload a lecture slides PDF, then generate here.
+              This lecture has no weekly files yet. Upload slides, a tutorial, answers, or a transcript on the Lectures tab, then generate here.
             </p>
           </div>
         ) : !practiceSet ? (
           <div className="empty-state space-y-4 py-16">
             <ListChecks className="mx-auto h-10 w-10" style={{ color: "var(--muted-foreground)" }} />
             <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-              No practice set yet. Generate 6 multiple-choice and 3 short-answer questions from these slides.
+              No practice set yet. Generate 6 multiple-choice and 3 short-answer questions from this lecture&apos;s weekly files.
             </p>
             <div className="flex justify-center">
               <GenerateButton label="Generate" busy={generating} onClick={handleGenerate} />
             </div>
             {generating && (
               <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                Reading the slides — questions will appear one by one.
+                Reading the weekly files — questions will appear one by one.
               </p>
             )}
           </div>
@@ -221,7 +221,7 @@ export default function PracticeTab({
             {generating && (
               <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
                 {practiceSet.questions.length === 0
-                  ? "Reading the slides — the first question will appear shortly."
+                  ? "Reading the weekly files — the first question will appear shortly."
                   : practiceSet.questions.length < PRACTICE_SET_SIZE
                     ? `Writing question ${practiceSet.questions.length + 1} of ${PRACTICE_SET_SIZE}…`
                     : "Saving the set…"}

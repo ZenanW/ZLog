@@ -3,7 +3,7 @@
  *
  * Usage: node --env-file=.env.local scripts/setup-storage.mjs
  *
- * Creates the "pdfs" bucket (private, PDF-only, 50MB limit — Supabase Free) and verifies
+ * Creates the "pdfs" bucket (private, PDF + plain text, 50MB limit — Supabase Free) and verifies
  * that public URL access is blocked while signed URLs work.
  */
 import { createClient } from "@supabase/supabase-js";
@@ -29,18 +29,18 @@ async function main() {
   const bucketConfig = {
     public: false,
     fileSizeLimit: "50MB",
-    allowedMimeTypes: ["application/pdf"],
+    allowedMimeTypes: ["application/pdf", "text/plain"],
   };
 
   if (!existing) {
     const { error } = await supabase.storage.createBucket(BUCKET, bucketConfig);
     if (error) throw new Error(`createBucket failed: ${error.message}`);
-    console.log(`Created bucket "${BUCKET}" (private, PDF-only, 50MB limit)`);
+    console.log(`Created bucket "${BUCKET}" (private, PDF + text, 50MB limit)`);
   } else {
     // Ensure config matches even if the bucket pre-existed.
     const { error } = await supabase.storage.updateBucket(BUCKET, bucketConfig);
     if (error) throw new Error(`updateBucket failed: ${error.message}`);
-    console.log(`Bucket "${BUCKET}" already exists; config enforced (private, PDF-only, 50MB limit)`);
+    console.log(`Bucket "${BUCKET}" already exists; config enforced (private, PDF + text, 50MB limit)`);
   }
 
   // 2. Verify the access model with a throwaway file.
@@ -75,6 +75,15 @@ async function main() {
   } finally {
     await supabase.storage.from(BUCKET).remove([testPath]);
   }
+
+  // 3. Confirm text/plain is allowed (transcripts).
+  const txtPath = `__setup_check__/${Date.now()}.txt`;
+  const { error: txtError } = await supabase.storage
+    .from(BUCKET)
+    .upload(txtPath, new TextEncoder().encode("ok\n"), { contentType: "text/plain" });
+  if (txtError) throw new Error(`text/plain test upload failed: ${txtError.message}`);
+  await supabase.storage.from(BUCKET).remove([txtPath]);
+  console.log("text/plain uploads allowed");
 
   console.log("Storage setup complete.");
 }

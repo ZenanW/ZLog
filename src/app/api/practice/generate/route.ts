@@ -19,37 +19,50 @@ import {
   PRACTICE_SET_SIZE,
   PRACTICE_SHORT_COUNT,
 } from "@/lib/practice";
-import { PDF_BUCKET, safePdfFileName } from "@/lib/pdfs";
+import { latestOfEachKind, PDF_BUCKET, safePdfFileName } from "@/lib/pdfs";
 import { getSupabase } from "@/lib/supabase";
-import { PracticeQuestion, PracticeSet } from "@/lib/types";
+import {
+  isPdfDocumentKind,
+  PDF_KIND_LABELS,
+  PDF_KINDS,
+  PdfKind,
+  PracticeQuestion,
+  PracticeSet,
+} from "@/lib/types";
 
 export const maxDuration = 120;
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const DEFAULT_MODEL = "claude-opus-5";
 
-function generatePrompt(lectureTitle: string): string {
-  return `You are writing a university practice set from the attached lecture slides (the first document). The lecture is titled "${lectureTitle}".
+function generatePrompt(lectureTitle: string, kinds: PdfKind[]): string {
+  const attached = kinds.map((kind) => `- ${PDF_KIND_LABELS[kind]}`).join("\n");
+  return `You are writing a university practice set from the attached weekly materials. The lecture is titled "${lectureTitle}".
+
+Materials attached:
+${attached}
 
 Return exactly ${PRACTICE_MCQ_COUNT} multiple-choice questions and ${PRACTICE_SHORT_COUNT} short-answer questions, in that order. Finish each question object completely before starting the next so they can be shown as they are written.
 
-Relevance — every item must come from THESE slides:
-- Answerable only from the attached PDF. Do not invent facts, formulas, names, or examples that are not in the deck.
-- Test what the slides actually teach: definitions, mechanisms, conditions, procedures, diagrams, and worked examples.
-- Skip topics mentioned only in passing. Skip slide numbers, layout, fonts, speaker notes, and "what is on slide N".
-- Prefer the lecture's own wording and claims over generic textbook filler.
+How to use the materials:
+- Every item must be answerable from THESE files. Do not invent facts, formulas, names, or examples that are not in them.
+- Slides: core concepts, definitions, diagrams, and procedures.
+- Tutorial sheet: the skills students are expected to practice. Do not copy worksheet items verbatim — write new questions that test the same ideas.
+- Tutorial answers: ground truth for worked problems. Use them so MCQ keys and model answers are correct. Do not paste answer-sheet solutions as the question prompt.
+- Transcript: spoken emphasis, asides, and what the lecturer stressed. Prefer those when they add something the slides do not.
+- Use only the kinds that are actually attached. Skip slide numbers, layout, fonts, and "what is on slide N".
 
 Diversity — do not cluster:
-- Spread items across distinct sections or headings. Do not take most questions from the first few slides or a single definition.
+- Spread items across distinct sections or headings. Do not take most questions from the first few pages or a single definition.
 - Among the MCQs, mix cognitive demand: at least two recall, two application / worked procedure, and two comparison, edge-case, or "what goes wrong if…".
 - Short answers must require a short explanation (why / how / tradeoff), not a one-word label.
 - Vary the stem. Not every question should be "What is X?" or "Which of the following…".
-- MCQ distractors must be plausible and drawn from nearby slide concepts (common confusions, swapped terms, off-by-one conditions). No joke or obviously-wrong options.
+- MCQ distractors must be plausible and drawn from nearby concepts (common confusions, swapped terms, off-by-one conditions). No joke or obviously-wrong options.
 
 Format:
 - MCQ: exactly ${PRACTICE_MCQ_CHOICES} choices with ids a, b, c, d. Exactly one correct. Put the correct choice in a varied position — not always a.
 - Short: model_answer is 2–4 sentences a strong student would write. explanation says how to self-check.
-- slide_reference: the slide title or topic heading from the PDF (for example "Gradient descent — step size"). Use an empty string if the deck has no usable titles.
+- slide_reference: a short source cue (slide title, tutorial heading, or a short transcript phrase). Empty string if none.
 - explanation: one or two sentences a student can read after answering.`;
 }
 
@@ -167,61 +180,114 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Lecture not found" }, { status: 404 });
   }
 
-  const { data: pdfRow, error: pdfError } = await supabase
+  const { data: fileRows, error: filesError } = await supabase
     .from("pdf_documents")
-    .select("name, path")
+    .select("kind, name, path")
     .eq("user_id", userId)
     .eq("lecture_id", lectureId)
-    .eq("kind", "lecture_slides")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (pdfError || !pdfRow) {
+    .in("kind", [...PDF_KINDS])
+    .order("created_at", { ascending: false });
+  if (filesError) {
+    return NextResponse.json({ error: filesError.message }, { status: 500 });
+  }
+
+  const weeklyFiles = latestOfEachKind(
+    (fileRows ?? []).flatMap((row) => {
+      const kind = row.kind as PdfKind;
+      if (!PDF_KINDS.includes(kind)) return [];
+      return [{ kind, name: String(row.name ?? ""), path: String(row.path ?? "") }];
+    })
+  );
+  if (weeklyFiles.length === 0) {
     return NextResponse.json(
-      { error: "Upload lecture slides on this lecture before generating a practice set." },
+      { error: "Upload slides, a tutorial, answers, or a transcript on this lecture before generating." },
       { status: 400 }
     );
   }
 
-  const { data: blob, error: downloadError } = await supabase.storage
-    .from(PDF_BUCKET)
-    .download(pdfRow.path);
-  if (downloadError || !blob) {
-    return NextResponse.json({ error: downloadError?.message ?? "Could not read slides from storage" }, { status: 500 });
+  const loaded: { kind: PdfKind; name: string; bytes: Buffer }[] = [];
+  for (const file of weeklyFiles) {
+    const { data: blob, error: downloadError } = await supabase.storage
+      .from(PDF_BUCKET)
+      .download(file.path);
+    if (downloadError || !blob) {
+      return NextResponse.json(
+        { error: downloadError?.message ?? `Could not read ${PDF_KIND_LABELS[file.kind].toLowerCase()} from storage` },
+        { status: 500 }
+      );
+    }
+    loaded.push({
+      kind: file.kind,
+      name: file.name,
+      bytes: Buffer.from(await blob.arrayBuffer()),
+    });
   }
 
-  const bytes = Buffer.from(await blob.arrayBuffer());
-  const filename = safePdfFileName(pdfRow.name || "slides.pdf");
-  const useFiles = shouldUseFilesApi([bytes.length]);
+  const pdfs = loaded.filter((file) => isPdfDocumentKind(file.kind));
+  const useFiles = shouldUseFilesApi(pdfs.map((file) => file.bytes.length));
+  const fileIds: string[] = [];
+  const contentBlocks: Record<string, unknown>[] = [];
+  const promptKinds: PdfKind[] = [];
 
-  let fileId: string | null = null;
-  let documentBlock: Record<string, unknown>;
   try {
-    if (useFiles) {
-      fileId = await uploadAnthropicPdf(apiKey, bytes, filename);
-      documentBlock = {
-        type: "document",
-        source: { type: "file", file_id: fileId },
-        cache_control: { type: "ephemeral" },
-      };
-    } else {
-      documentBlock = {
-        type: "document",
-        source: { type: "base64", media_type: "application/pdf", data: bytes.toString("base64") },
-        cache_control: { type: "ephemeral" },
-      };
+    for (const file of loaded) {
+      const label = PDF_KIND_LABELS[file.kind].toLowerCase();
+      if (isPdfDocumentKind(file.kind)) {
+        contentBlocks.push({
+          type: "text",
+          text: `The next document is the ${label} (${file.name || `${file.kind}.pdf`}).`,
+        });
+        if (useFiles) {
+          const fileId = await uploadAnthropicPdf(
+            apiKey,
+            file.bytes,
+            safePdfFileName(file.name || `${file.kind}.pdf`)
+          );
+          fileIds.push(fileId);
+          contentBlocks.push({
+            type: "document",
+            source: { type: "file", file_id: fileId },
+            cache_control: { type: "ephemeral" },
+          });
+        } else {
+          contentBlocks.push({
+            type: "document",
+            source: { type: "base64", media_type: "application/pdf", data: file.bytes.toString("base64") },
+            cache_control: { type: "ephemeral" },
+          });
+        }
+        promptKinds.push(file.kind);
+      } else {
+        const transcript = file.bytes.toString("utf8").replace(/^\uFEFF/, "").trim();
+        if (!transcript) continue;
+        contentBlocks.push({
+          type: "text",
+          text: `The following is the lecture transcript (${file.name || "transcript.txt"}):\n\n${transcript}`,
+        });
+        promptKinds.push(file.kind);
+      }
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Could not send slides to Claude";
+    await Promise.all(fileIds.map((id) => deleteAnthropicFile(apiKey, id)));
+    const message = err instanceof Error ? err.message : "Could not send weekly files to Claude";
     return NextResponse.json({ error: message }, { status: 502 });
   }
+
+  if (contentBlocks.length === 0 || promptKinds.length === 0) {
+    return NextResponse.json(
+      { error: "Upload slides, a tutorial, answers, or a transcript on this lecture before generating." },
+      { status: 400 }
+    );
+  }
+
+  contentBlocks.push({ type: "text", text: generatePrompt(lecture.title as string, promptKinds) });
 
   const headers: Record<string, string> = {
     "x-api-key": apiKey,
     "anthropic-version": "2023-06-01",
     "content-type": "application/json",
   };
-  if (fileId) headers["anthropic-beta"] = ANTHROPIC_FILES_BETA;
+  if (fileIds.length > 0) headers["anthropic-beta"] = ANTHROPIC_FILES_BETA;
 
   const now = new Date().toISOString();
   const setId = crypto.randomUUID();
@@ -254,10 +320,7 @@ export async function POST(request: NextRequest) {
               messages: [
                 {
                   role: "user",
-                  content: [
-                    documentBlock,
-                    { type: "text", text: generatePrompt(lecture.title as string) },
-                  ],
+                  content: contentBlocks,
                 },
               ],
               output_config: {
@@ -364,7 +427,9 @@ export async function POST(request: NextRequest) {
         const message = err instanceof Error ? err.message : "Failed to generate practice set";
         send({ type: "error", error: missingPracticeTablesMessage(message) ?? message });
       } finally {
-        if (fileId) await deleteAnthropicFile(apiKey, fileId);
+        if (fileIds.length > 0) {
+          await Promise.all(fileIds.map((id) => deleteAnthropicFile(apiKey, id)));
+        }
         controller.close();
       }
     },
