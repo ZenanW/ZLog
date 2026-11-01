@@ -16,6 +16,7 @@ import {
   PRACTICE_MCQ_CHOICES,
   practiceCountFor,
   practiceOutputSchema,
+  practiceRequestCountFor,
   type PracticeGenerateMode,
 } from "@/lib/practice";
 import { latestOfEachKind, PDF_BUCKET, safePdfFileName } from "@/lib/pdfs";
@@ -37,11 +38,12 @@ const DEFAULT_MODEL = "claude-sonnet-5";
 function generatePrompt(lectureTitle: string, kinds: PdfKind[], mode: PracticeGenerateMode): string {
   const attached = kinds.map((kind) => `- ${PDF_KIND_LABELS[kind]}`).join("\n");
   const count = practiceCountFor(mode);
+  const writeCount = practiceRequestCountFor(mode);
   const task = mode === "mcq"
-    ? `Return exactly ${count} multiple-choice questions in the questions array. Every question has kind "mcq". Do not write short-answer questions. Set model_answer to an empty string.`
-    : `Return exactly ${count} short-answer questions in the questions array. Every question has kind "short". Do not write multiple-choice questions.`;
+    ? `Write ${writeCount} multiple-choice questions in the questions array, in order. Every question has kind "mcq". Do not write short-answer questions. Set model_answer to an empty string. Do not stop before ${writeCount}. The first ${count} are the ones a student will see, so make those the strongest and most varied. Later questions are spares.`
+    : `Write ${writeCount} short-answer questions in the questions array, in order. Every question has kind "short". Do not write multiple-choice questions. Do not stop before ${writeCount}. The first ${count} are the ones a student will see, so make those the strongest. Later questions are spares.`;
   const diversity = mode === "mcq"
-    ? `Mix cognitive demand across the ${count}: at least three recall, four application or worked procedure, and three comparison, edge-case, or "what goes wrong if…".
+    ? `Mix cognitive demand across the first ${count}: at least three recall, four application or worked procedure, and three comparison, edge-case, or "what goes wrong if…".
 - MCQ distractors must be plausible and drawn from nearby concepts (common confusions, swapped terms, off-by-one conditions). No joke or obviously-wrong options.`
     : `Each short answer must require a short explanation (why / how / tradeoff), not a one-word label.
 - model_answer is 2–4 sentences a strong student would write. explanation says how to self-check.`;
@@ -317,6 +319,7 @@ export async function POST(request: NextRequest) {
     async start(controller) {
       const send = (payload: unknown) => controller.enqueue(sseLine(payload));
       const questions: PracticeQuestion[] = [];
+      let consumed = 0;
       const expected = practiceCountFor(mode);
 
       try {
@@ -329,7 +332,7 @@ export async function POST(request: NextRequest) {
             headers,
             body: JSON.stringify({
               model: process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL,
-              max_tokens: mode === "mcq" ? 20000 : 12000,
+              max_tokens: mode === "mcq" ? 24000 : 16000,
               stream: true,
               messages: [
                 {
@@ -391,9 +394,10 @@ export async function POST(request: NextRequest) {
               if (delta?.type !== "text_delta" || typeof delta.text !== "string") continue;
               jsonBuf += delta.text;
               const objects = extractQuestionObjects(jsonBuf);
-              while (questions.length < objects.length) {
-                const draft = normalizeGeneratedQuestion(objects[questions.length]);
-                if (!draft || draft.kind !== mode) break;
+              while (consumed < objects.length && questions.length < expected) {
+                const draft = normalizeGeneratedQuestion(objects[consumed]);
+                consumed += 1;
+                if (!draft || draft.kind !== mode) continue;
                 const question = draftToQuestion(draft, setId, questions.length);
                 questions.push(question);
                 send({ type: "question", question, total: expected });
@@ -410,20 +414,7 @@ export async function POST(request: NextRequest) {
         flushSse(decoder.decode());
         if (sseBuf.trim()) flushSse("\n\n");
 
-        if (stopReason === "max_tokens") {
-          send({ type: "error", error: "Claude ran out of tokens — try generating again." });
-          return;
-        }
-        if (stopReason === "refusal") {
-          send({ type: "error", error: "Claude declined to write a practice set from these files." });
-          return;
-        }
-        if (stopReason === "model_context_window_exceeded") {
-          send({ type: "error", error: "These files are too long for one practice set." });
-          return;
-        }
-
-        if (questions.length !== expected) {
+        if (questions.length < expected) {
           try {
             const drafts = normalizeGeneratedQuestions(JSON.parse(jsonBuf), mode);
             if (drafts) {
@@ -437,7 +428,21 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        if (questions.length !== expected) {
+        if (questions.length > expected) questions.length = expected;
+
+        if (questions.length < expected) {
+          if (stopReason === "max_tokens") {
+            send({ type: "error", error: "Claude ran out of tokens — try generating again." });
+            return;
+          }
+          if (stopReason === "refusal") {
+            send({ type: "error", error: "Claude declined to write a practice set from these files." });
+            return;
+          }
+          if (stopReason === "model_context_window_exceeded") {
+            send({ type: "error", error: "These files are too long for one practice set." });
+            return;
+          }
           send({ type: "error", error: "Claude returned an incomplete practice set. Try generating again." });
           return;
         }

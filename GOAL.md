@@ -75,7 +75,7 @@ Dated rows fill at most four slots when a lecture qualifies, so the lecture is n
 - `mcq` writes exactly 10 multiple-choice questions (`PRACTICE_MCQ_COUNT`).
 - `short` writes exactly 5 short-answer questions (`PRACTICE_SHORT_COUNT`).
 
-The prompt and the structured-output schema ask for that kind only. `normalizeGeneratedQuestions` rejects a set that is the wrong length or the wrong kind. One set per lecture still replaces the previous set. Older mixed sets still open. The Practice tab offers both buttons before a set exists and again beside an existing set.
+The prompt asks for two spare questions (12 multiple choice, or 7 short answers) because the schema cannot force the array length. `normalizeGeneratedQuestions` keeps the first 10 or 5 valid questions of that kind and rejects a shorter set. One set per lecture still replaces the previous set. Older mixed sets still open. The Practice tab offers both buttons before a set exists and again beside an existing set.
 
 ### What this must not do
 
@@ -96,7 +96,7 @@ No automated test suite exists; do not block on tests. Manual user testing is th
 
 *Agent updates this line every run.*
 
-Practice generate is one kind at a time: 10 multiple choice, or 5 short answers, in a single questions array. Choosing either replaces that lecture's current set. The Today list is unchanged. Email is still later.
+Practice generate still saves 10 multiple choice or 5 short answers. The prompt asks for two spares and a longer reply is trimmed to that count. Choosing either replaces that lecture's current set. The Today list is unchanged. Email is still later.
 
 ## Backlog
 

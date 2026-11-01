@@ -10,6 +10,11 @@ export function practiceCountFor(mode: PracticeGenerateMode): number {
   return mode === "mcq" ? PRACTICE_MCQ_COUNT : PRACTICE_SHORT_COUNT;
 }
 
+/** Ask for two spare questions. The array length cannot be forced, so extras are discarded. */
+export function practiceRequestCountFor(mode: PracticeGenerateMode): number {
+  return practiceCountFor(mode) + 2;
+}
+
 const CHOICE_IDS = ["a", "b", "c", "d"] as const;
 
 export interface GeneratedQuestionDraft {
@@ -129,15 +134,16 @@ export function normalizeGeneratedQuestions(
 ): GeneratedQuestionDraft[] | null {
   if (!raw || typeof raw !== "object") return null;
   const questions = (raw as { questions?: unknown }).questions;
+  if (!Array.isArray(questions)) return null;
   const expected = practiceCountFor(mode);
-  if (!Array.isArray(questions) || questions.length !== expected) return null;
   const drafts: GeneratedQuestionDraft[] = [];
   for (const item of questions) {
     const draft = normalizeGeneratedQuestion(item);
-    if (!draft || draft.kind !== mode) return null;
+    if (!draft || draft.kind !== mode) continue;
     drafts.push(draft);
+    if (drafts.length === expected) break;
   }
-  return drafts;
+  return drafts.length === expected ? drafts : null;
 }
 
 export function practiceOutputSchema(mode: PracticeGenerateMode) {
