@@ -405,6 +405,7 @@ export default function AppShell() {
                 getSetForLecture={practiceState.getSetForLecture}
                 onGenerateSet={practiceState.generateSet}
                 generatingLectureId={practiceState.generatingLectureId}
+                generatingKind={practiceState.generatingKind}
                 generateError={practiceState.generateError}
                 onDeleteSet={practiceState.deleteSet}
                 loadError={practiceState.loadError}

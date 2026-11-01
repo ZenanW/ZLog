@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Search, X } from "lucide-react";
 import { Lecture, Subject } from "@/lib/types";
+import { parseWeekNumber } from "@/lib/weeks";
 import { microLabel, panel } from "@/lib/ui";
 import SubjectBadge from "./SubjectBadge";
 
@@ -24,7 +25,14 @@ function groupLecturesBySubject(
   const q = search.trim().toLowerCase();
   const filtered = lectures
     .filter((l) => !q || l.title.toLowerCase().includes(q))
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    .sort((a, b) => {
+      const aw = parseWeekNumber(a.title);
+      const bw = parseWeekNumber(b.title);
+      if (aw !== null && bw !== null && aw !== bw) return aw - bw;
+      if (aw !== null && bw === null) return -1;
+      if (aw === null && bw !== null) return 1;
+      return a.title.localeCompare(b.title, undefined, { numeric: true });
+    });
 
   const bySubject = new Map<string, Lecture[]>();
   for (const lecture of filtered) {
@@ -59,12 +67,12 @@ export default function LecturePicker({
 
   return (
     <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: "auto" }}
-      exit={{ opacity: 0, height: 0 }}
-      className="overflow-hidden"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="flex min-h-[70vh] flex-1 flex-col lg:h-full lg:min-h-0"
     >
-      <div className={`${panel} space-y-4`}>
+      <div className={`${panel} flex min-h-0 flex-1 flex-col space-y-4`}>
         <div className="flex items-center justify-between">
           <h3 className={microLabel}>Choose a lecture</h3>
           {onCancel && (
@@ -88,7 +96,7 @@ export default function LecturePicker({
           />
         </div>
 
-        <div className="max-h-64 space-y-4 overflow-y-auto">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
           {groups.length === 0 ? (
             <p className="py-4 text-center text-sm" style={{ color: "var(--muted-foreground)" }}>
               {lectures.length === 0

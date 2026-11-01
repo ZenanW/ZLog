@@ -1,8 +1,14 @@
 import { PracticeChoice, PracticeQuestion, PracticeQuestionKind, PracticeSet } from "@/lib/types";
 
-export const PRACTICE_MCQ_COUNT = 6;
-export const PRACTICE_SHORT_COUNT = 3;
+export const PRACTICE_MCQ_COUNT = 10;
+export const PRACTICE_SHORT_COUNT = 5;
 export const PRACTICE_MCQ_CHOICES = 4;
+
+export type PracticeGenerateMode = "mcq" | "short";
+
+export function practiceCountFor(mode: PracticeGenerateMode): number {
+  return mode === "mcq" ? PRACTICE_MCQ_COUNT : PRACTICE_SHORT_COUNT;
+}
 
 export const PRACTICE_OUTPUT_SCHEMA = {
   type: "object",
@@ -87,8 +93,6 @@ export function mapPracticeSetFromDb(row: Record<string, unknown>): PracticeSet 
   };
 }
 
-export const PRACTICE_SET_SIZE = PRACTICE_MCQ_COUNT + PRACTICE_SHORT_COUNT;
-
 function asNonEmptyString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -139,20 +143,41 @@ export function normalizeGeneratedQuestion(item: unknown): GeneratedQuestionDraf
   };
 }
 
-export function normalizeGeneratedQuestions(raw: unknown): GeneratedQuestionDraft[] | null {
+export function normalizeGeneratedQuestions(
+  raw: unknown,
+  mode: PracticeGenerateMode
+): GeneratedQuestionDraft[] | null {
   if (!raw || typeof raw !== "object") return null;
   const questions = (raw as { questions?: unknown }).questions;
-  if (!Array.isArray(questions) || questions.length !== PRACTICE_SET_SIZE) return null;
+  const expected = practiceCountFor(mode);
+  if (!Array.isArray(questions) || questions.length !== expected) return null;
   const drafts: GeneratedQuestionDraft[] = [];
   for (const item of questions) {
     const draft = normalizeGeneratedQuestion(item);
-    if (!draft) return null;
+    if (!draft || draft.kind !== mode) return null;
     drafts.push(draft);
   }
-  const mcqCount = drafts.filter((q) => q.kind === "mcq").length;
-  const shortCount = drafts.filter((q) => q.kind === "short").length;
-  if (mcqCount !== PRACTICE_MCQ_COUNT || shortCount !== PRACTICE_SHORT_COUNT) return null;
   return drafts;
+}
+
+export function practiceOutputSchema(mode: PracticeGenerateMode) {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["questions"],
+    properties: {
+      questions: {
+        type: "array",
+        items: {
+          ...PRACTICE_OUTPUT_SCHEMA.properties.questions.items,
+          properties: {
+            ...PRACTICE_OUTPUT_SCHEMA.properties.questions.items.properties,
+            kind: { type: "string", enum: [mode] },
+          },
+        },
+      },
+    },
+  };
 }
 
 function findQuestionsArrayStart(text: string): number {

@@ -14,10 +14,9 @@ import {
   normalizeGeneratedQuestion,
   normalizeGeneratedQuestions,
   PRACTICE_MCQ_CHOICES,
-  PRACTICE_MCQ_COUNT,
-  PRACTICE_OUTPUT_SCHEMA,
-  PRACTICE_SET_SIZE,
-  PRACTICE_SHORT_COUNT,
+  practiceCountFor,
+  practiceOutputSchema,
+  type PracticeGenerateMode,
 } from "@/lib/practice";
 import { latestOfEachKind, PDF_BUCKET, safePdfFileName } from "@/lib/pdfs";
 import { getSupabase } from "@/lib/supabase";
@@ -35,33 +34,43 @@ export const maxDuration = 120;
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const DEFAULT_MODEL = "claude-opus-5";
 
-function generatePrompt(lectureTitle: string, kinds: PdfKind[]): string {
+function generatePrompt(lectureTitle: string, kinds: PdfKind[], mode: PracticeGenerateMode): string {
   const attached = kinds.map((kind) => `- ${PDF_KIND_LABELS[kind]}`).join("\n");
+  const count = practiceCountFor(mode);
+  const task = mode === "mcq"
+    ? `Return exactly ${count} multiple-choice questions. Every question has kind "mcq". Do not write short-answer questions. Set model_answer to an empty string.`
+    : `Return exactly ${count} short-answer questions. Every question has kind "short". Do not write multiple-choice questions. Set choices to an empty array and correct_choice_id to an empty string.`;
+  const diversity = mode === "mcq"
+    ? `Mix cognitive demand across the ${count}: at least three recall, four application or worked procedure, and three comparison, edge-case, or "what goes wrong if…".
+- MCQ distractors must be plausible and drawn from nearby concepts (common confusions, swapped terms, off-by-one conditions). No joke or obviously-wrong options.`
+    : `Each short answer must require a short explanation (why / how / tradeoff), not a one-word label.
+- model_answer is 2–4 sentences a strong student would write. explanation says how to self-check.`;
+  const format = mode === "mcq"
+    ? `MCQ: exactly ${PRACTICE_MCQ_CHOICES} choices with ids a, b, c, d. Exactly one correct. Put the correct choice in a varied position — not always a.`
+    : `Short: model_answer is the answer the student should compare against. Do not include choices.`;
+
   return `You are writing a university practice set from the attached weekly materials. The lecture is titled "${lectureTitle}".
 
 Materials attached:
 ${attached}
 
-Return exactly ${PRACTICE_MCQ_COUNT} multiple-choice questions and ${PRACTICE_SHORT_COUNT} short-answer questions, in that order. Finish each question object completely before starting the next so they can be shown as they are written.
+${task} Finish each question object completely before starting the next so they can be shown as they are written.
 
 How to use the materials:
 - Every item must be answerable from THESE files. Do not invent facts, formulas, names, or examples that are not in them.
 - Slides: core concepts, definitions, diagrams, and procedures.
 - Tutorial sheet: the skills students are expected to practice. Do not copy worksheet items verbatim — write new questions that test the same ideas.
-- Tutorial answers: ground truth for worked problems. Use them so MCQ keys and model answers are correct. Do not paste answer-sheet solutions as the question prompt.
+- Tutorial answers: ground truth for worked problems. Use them so answer keys and model answers are correct. Do not paste answer-sheet solutions as the question prompt.
 - Transcript: spoken emphasis, asides, and what the lecturer stressed. Prefer those when they add something the slides do not.
 - Use only the kinds that are actually attached. Skip slide numbers, layout, fonts, and "what is on slide N".
 
 Diversity — do not cluster:
 - Spread items across distinct sections or headings. Do not take most questions from the first few pages or a single definition.
-- Among the MCQs, mix cognitive demand: at least two recall, two application / worked procedure, and two comparison, edge-case, or "what goes wrong if…".
-- Short answers must require a short explanation (why / how / tradeoff), not a one-word label.
+- ${diversity}
 - Vary the stem. Not every question should be "What is X?" or "Which of the following…".
-- MCQ distractors must be plausible and drawn from nearby concepts (common confusions, swapped terms, off-by-one conditions). No joke or obviously-wrong options.
 
 Format:
-- MCQ: exactly ${PRACTICE_MCQ_CHOICES} choices with ids a, b, c, d. Exactly one correct. Put the correct choice in a varied position — not always a.
-- Short: model_answer is 2–4 sentences a strong student would write. explanation says how to self-check.
+- ${format}
 - slide_reference: a short source cue (slide title, tutorial heading, or a short transcript phrase). Empty string if none.
 - explanation: one or two sentences a student can read after answering.`;
 }
@@ -165,8 +174,12 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => ({}));
   const lectureId = typeof body.lectureId === "string" ? body.lectureId : "";
+  const mode: PracticeGenerateMode | null = body.mode === "mcq" || body.mode === "short" ? body.mode : null;
   if (!lectureId) {
     return NextResponse.json({ error: "lectureId is required" }, { status: 400 });
+  }
+  if (!mode) {
+    return NextResponse.json({ error: "mode must be mcq or short" }, { status: 400 });
   }
 
   const supabase = getSupabase();
@@ -280,7 +293,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  contentBlocks.push({ type: "text", text: generatePrompt(lecture.title as string, promptKinds) });
+  contentBlocks.push({ type: "text", text: generatePrompt(lecture.title as string, promptKinds, mode) });
 
   const headers: Record<string, string> = {
     "x-api-key": apiKey,
@@ -304,9 +317,10 @@ export async function POST(request: NextRequest) {
     async start(controller) {
       const send = (payload: unknown) => controller.enqueue(sseLine(payload));
       const questions: PracticeQuestion[] = [];
+      const expected = practiceCountFor(mode);
 
       try {
-        send({ type: "start", set: emptySet, total: PRACTICE_SET_SIZE });
+        send({ type: "start", set: emptySet, total: expected });
 
         let anthropicRes: Response;
         try {
@@ -315,7 +329,7 @@ export async function POST(request: NextRequest) {
             headers,
             body: JSON.stringify({
               model: process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL,
-              max_tokens: 8192,
+              max_tokens: mode === "mcq" ? 12000 : 8192,
               stream: true,
               messages: [
                 {
@@ -326,7 +340,7 @@ export async function POST(request: NextRequest) {
               output_config: {
                 format: {
                   type: "json_schema",
-                  schema: PRACTICE_OUTPUT_SCHEMA,
+                  schema: practiceOutputSchema(mode),
                 },
               },
             }),
@@ -379,10 +393,10 @@ export async function POST(request: NextRequest) {
               const objects = extractQuestionObjects(jsonBuf);
               while (questions.length < objects.length) {
                 const draft = normalizeGeneratedQuestion(objects[questions.length]);
-                if (!draft) break;
+                if (!draft || draft.kind !== mode) break;
                 const question = draftToQuestion(draft, setId, questions.length);
                 questions.push(question);
-                send({ type: "question", question, total: PRACTICE_SET_SIZE });
+                send({ type: "question", question, total: expected });
               }
             }
           }
@@ -400,15 +414,13 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        if (questions.length === 0) {
+        if (questions.length !== expected) {
           try {
-            const parsed = JSON.parse(jsonBuf);
-            const drafts = normalizeGeneratedQuestions(parsed);
+            const drafts = normalizeGeneratedQuestions(JSON.parse(jsonBuf), mode);
             if (drafts) {
+              questions.length = 0;
               for (const draft of drafts) {
-                const question = draftToQuestion(draft, setId, questions.length);
-                questions.push(question);
-                send({ type: "question", question, total: PRACTICE_SET_SIZE });
+                questions.push(draftToQuestion(draft, setId, questions.length));
               }
             }
           } catch {
@@ -416,7 +428,7 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        if (questions.length === 0) {
+        if (questions.length !== expected) {
           send({ type: "error", error: "Claude returned an incomplete practice set. Try generating again." });
           return;
         }

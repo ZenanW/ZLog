@@ -1,15 +1,12 @@
 # North Star
 
-**Dev cycle: Today list.** On the Exams/Assignments page, a short in-page list says what to do next. It is DONE when a user can:
+**Dev cycle: Practice format.** On the Practice tab, multiple choice and short answer are separate generates. It is DONE when a user can:
 
-1. See at most five rows under the stats: open assignments with a due date inside 14 days (overdue included), exams dated within the next 14 days, and one lecture (longest in progress, otherwise one high-priority backlog item).
-2. Read each row as one line: subject, name, and why it is here.
-3. Click a row to open that assignment, exam, or lecture. A lecture switches to the Lectures tab and opens its detail.
-4. See a single "Nothing due" line when no row qualifies. No modal, badge, or second to-do list.
+1. Pick a lecture that has weekly files and choose **10 multiple choice** or **5 short answers**.
+2. Have that choice call Claude and replace the lecture's current practice set with only that kind. A partial or mixed result is not saved.
+3. See the session for that set, and generate the other kind later, which replaces this set after a confirm.
 
-Exams and assignments side by side are SHIPPED. Do not regress them. Email, Web Push, and the extension stay later. They must send this same list.
-
-Weekly lecture materials and practice generate are SHIPPED — do not regress them. Lecture, exam, and practice surfaces are SHIPPED. Notes is ABANDONED. Cheaper or alternate generate models are **dropped** — stay on the current Anthropic model.
+The Today list, exams, and assignments are SHIPPED. Do not regress them. Email, Web Push, and the extension stay later. Notes is ABANDONED. Stay on the current Anthropic model. Do not add a second Claude call to grade short answers.
 
 ## Constraints
 
@@ -23,7 +20,7 @@ Never violate these:
 - **State:** Assignments live in `useExamState.ts` beside exams. Optimistic updates with rollback. Client IDs via `uuid` v4 before API calls.
 - **Reuse:** Do not add a new top-level tab. Assignments share the Exams/Assignments page. Subject chips match lecture add (`SubjectBadge`). Topics and practice tests stay on exams only.
 - **Explicitly OUT OF SCOPE this cycle:** email, Web Push, calendar feeds, a browser extension, notification permissions, note-taking, Google OAuth, collaborative editing, live AI, generating questions from exam topics, spaced repetition, grading short answers, switching generate models. If a task seems to need any of these, stop and ask the user instead.
-- **Migrations:** Write SQL to `scripts/migrations/` (next number is `009`). The user runs migrations manually in the Supabase SQL editor — tell them when one is pending; never assume it has run.
+- **Migrations:** Write SQL to `scripts/migrations/` (next number is `010`). The user runs migrations manually in the Supabase SQL editor — tell them when one is pending; never assume it has run. This practice change does not need a migration.
 - **Do NOT commit.** Never run `git commit`, `git push`, or alter git history. The user commits. Leave changes in the working tree.
 
 ## Feature Spec
@@ -71,9 +68,18 @@ Rules, in order:
 
 Dated rows fill at most four slots when a lecture qualifies, so the lecture is not crowded out. Total cap is five. A row within one day, or overdue, is marked urgent. Clicking uses the existing exam, assignment, and lecture detail panels.
 
+### Practice format
+
+`POST /api/practice/generate` requires `mode`: `mcq` or `short`.
+
+- `mcq` writes exactly 10 multiple-choice questions (`PRACTICE_MCQ_COUNT`).
+- `short` writes exactly 5 short-answer questions (`PRACTICE_SHORT_COUNT`).
+
+The prompt and the structured-output schema ask for that kind only. `normalizeGeneratedQuestions` rejects a set that is the wrong length or the wrong kind. One set per lecture still replaces the previous set. Older mixed sets still open. The Practice tab offers both buttons before a set exists and again beside an existing set.
+
 ### What this must not do
 
-No scheduler, no email, no push, no extension, no overlay. Dates on the cards stay labels.
+No scheduler, no email, no push, no extension, no overlay. Do not grade short answers with a second model call. Dates on the cards stay labels.
 
 ## Definition of Done
 
@@ -90,7 +96,7 @@ No automated test suite exists; do not block on tests. Manual user testing is th
 
 *Agent updates this line every run.*
 
-The Exams/Assignments page has a Today list under the stats: overdue and 14-day assignments, exams in the next 14 days, and one stuck or high-priority lecture. A row opens that record. An empty list is one line, "Nothing due." Email is still later.
+Practice generate is one kind at a time: 10 multiple choice, or 5 short answers. Choosing either replaces that lecture's current set. The Today list is unchanged. Email is still later.
 
 ## Backlog
 
@@ -98,6 +104,7 @@ Highest value first. Do the top unchecked item only. Do not start anything under
 
 - [x] **Assignments beside exams:** migration `009_assignments.sql` drops the nested table and creates a standalone `assignments` table with `subject_id`; exams gain `subject_id`; tab and add card cover both; exam and assignment cards and detail panels; semester reset deletes assignments.
 - [x] **Today list:** `buildTodayItems` plus `TodayList` on the Exams/Assignments page. At most five rows. Click opens the existing detail. Empty state is one line.
+- [x] **Practice format:** Practice tab offers 10 multiple choice or 5 short answers. Generate sends `mode` and saves only a full set of that kind.
 
 ## Later
 

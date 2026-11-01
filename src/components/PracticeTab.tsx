@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { ListChecks, Loader2, Sparkles, Trash2 } from "lucide-react";
-import { Lecture, LecturePdf, PracticeSet, Subject } from "@/lib/types";
-import { PRACTICE_SET_SIZE } from "@/lib/practice";
+import { Lecture, LecturePdf, PracticeQuestion, PracticeSet, Subject } from "@/lib/types";
+import { practiceCountFor, PracticeGenerateMode } from "@/lib/practice";
 import { btnPrimary, btnSecondary, microLabel, panel } from "@/lib/ui";
 import LecturePicker from "./LecturePicker";
 import PracticeSession from "./PracticeSession";
@@ -15,8 +15,9 @@ interface PracticeTabProps {
   subjects: Subject[];
   lectures: Lecture[];
   getSetForLecture: (lectureId: string) => PracticeSet | null;
-  onGenerateSet: (lectureId: string) => Promise<PracticeSet | undefined>;
+  onGenerateSet: (lectureId: string, mode: PracticeGenerateMode) => Promise<PracticeSet | undefined>;
   generatingLectureId: string | null;
+  generatingKind: PracticeGenerateMode | null;
   generateError: string | null;
   onDeleteSet: (id: string) => void;
   loadError: string | null;
@@ -26,19 +27,28 @@ interface PracticeTabProps {
   readyLectureIds?: string[];
 }
 
+function formatLabel(questions: PracticeQuestion[]): string {
+  const kinds = new Set(questions.map((question) => question.kind));
+  if (kinds.size === 1 && kinds.has("mcq")) return "Multiple choice";
+  if (kinds.size === 1 && kinds.has("short")) return "Short answer";
+  return "Mixed";
+}
+
 function GenerateButton({
   label,
-  busy,
+  active,
+  disabled,
   onClick,
 }: {
   label: string;
-  busy: boolean;
+  active: boolean;
+  disabled: boolean;
   onClick: () => void;
 }) {
   return (
-    <button type="button" onClick={onClick} disabled={busy} className={btnPrimary}>
-      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-      {busy ? "Generating…" : label}
+    <button type="button" onClick={onClick} disabled={disabled} className={active || !disabled ? btnPrimary : btnSecondary}>
+      {active ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+      {active ? "Generating…" : label}
     </button>
   );
 }
@@ -49,6 +59,7 @@ export default function PracticeTab({
   getSetForLecture,
   onGenerateSet,
   generatingLectureId,
+  generatingKind,
   generateError,
   onDeleteSet,
   loadError,
@@ -100,15 +111,19 @@ export default function PracticeTab({
     };
   }, [lecture, idToken]);
 
-  const handleGenerate = () => {
+  const handleGenerate = (mode: PracticeGenerateMode) => {
     if (!lecture || generating) return;
     if (practiceSet && !confirm("Replace the current practice set for this lecture?")) return;
-    void onGenerateSet(lecture.id);
+    void onGenerateSet(lecture.id, mode);
   };
 
+  const expectedCount = generating && generatingKind
+    ? practiceCountFor(generatingKind)
+    : practiceSet?.questions.length ?? 0;
+
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
-      <aside className="space-y-4">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] lg:items-start">
+      <aside className="lg:sticky lg:top-24 lg:flex lg:h-[calc(100dvh-8rem)] lg:min-h-0 lg:flex-col">
         <AnimatePresence mode="wait">
           {picking ? (
             <LecturePicker
@@ -180,10 +195,11 @@ export default function PracticeTab({
           <div className="empty-state space-y-4 py-16">
             <ListChecks className="mx-auto h-10 w-10" style={{ color: "var(--muted-foreground)" }} />
             <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-              No practice set yet. Generate 6 multiple-choice and 3 short-answer questions from this lecture&apos;s weekly files.
+              No practice set yet. Generate 10 multiple-choice questions, or 5 short answers, from this lecture&apos;s weekly files.
             </p>
-            <div className="flex justify-center">
-              <GenerateButton label="Generate" busy={generating} onClick={handleGenerate} />
+            <div className="flex flex-wrap justify-center gap-2">
+              <GenerateButton label="10 multiple choice" active={generating && generatingKind === "mcq"} disabled={generating} onClick={() => handleGenerate("mcq")} />
+              <GenerateButton label="5 short answers" active={generating && generatingKind === "short"} disabled={generating} onClick={() => handleGenerate("short")} />
             </div>
             {generating && (
               <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
@@ -198,12 +214,13 @@ export default function PracticeTab({
                 <p className={microLabel}>Practice set</p>
                 <p className="mt-1 text-sm" style={{ color: "var(--foreground)" }}>
                   {generating
-                    ? `${practiceSet.questions.length} of ${PRACTICE_SET_SIZE} written`
-                    : `${practiceSet.questions.length} questions · generated ${format(new Date(practiceSet.generatedAt), "MMM d, yyyy 'at' h:mm a")}`}
+                    ? `${practiceSet.questions.length} of ${expectedCount} written`
+                    : `${formatLabel(practiceSet.questions)} · ${practiceSet.questions.length} questions · generated ${format(new Date(practiceSet.generatedAt), "MMM d, yyyy 'at' h:mm a")}`}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <GenerateButton label="Regenerate" busy={generating} onClick={handleGenerate} />
+                <GenerateButton label="10 multiple choice" active={generating && generatingKind === "mcq"} disabled={generating} onClick={() => handleGenerate("mcq")} />
+                <GenerateButton label="5 short answers" active={generating && generatingKind === "short"} disabled={generating} onClick={() => handleGenerate("short")} />
                 <button
                   type="button"
                   onClick={() => {
@@ -222,8 +239,8 @@ export default function PracticeTab({
               <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
                 {practiceSet.questions.length === 0
                   ? "Reading the weekly files — the first question will appear shortly."
-                  : practiceSet.questions.length < PRACTICE_SET_SIZE
-                    ? `Writing question ${practiceSet.questions.length + 1} of ${PRACTICE_SET_SIZE}…`
+                  : practiceSet.questions.length < expectedCount
+                    ? `Writing question ${practiceSet.questions.length + 1} of ${expectedCount}…`
                     : "Saving the set…"}
               </p>
             )}

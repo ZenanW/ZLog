@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { missingPracticeTablesMessage, PracticeGenerateMode } from "@/lib/practice";
 import { PracticeQuestion, PracticeSet } from "@/lib/types";
-import { missingPracticeTablesMessage } from "@/lib/practice";
 
 async function apiFetch(path: string, token: string, options?: RequestInit) {
   const res = await fetch(path, {
@@ -25,6 +25,7 @@ export function usePracticeState(idToken: string | null) {
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [generatingLectureId, setGeneratingLectureId] = useState<string | null>(null);
+  const [generatingKind, setGeneratingKind] = useState<PracticeGenerateMode | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,10 +60,11 @@ export function usePracticeState(idToken: string | null) {
   );
 
   const generateSet = useCallback(
-    async (lectureId: string) => {
+    async (lectureId: string, mode: PracticeGenerateMode) => {
       if (!idToken) return;
       const previous = sets.find((s) => s.lectureId === lectureId) ?? null;
       setGeneratingLectureId(lectureId);
+      setGeneratingKind(mode);
       setGenerateError(null);
       try {
         const res = await fetch("/api/practice/generate", {
@@ -71,7 +73,7 @@ export function usePracticeState(idToken: string | null) {
             "Content-Type": "application/json",
             Authorization: `Bearer ${idToken}`,
           },
-          body: JSON.stringify({ lectureId }),
+          body: JSON.stringify({ lectureId, mode }),
         });
         const contentType = res.headers.get("content-type") ?? "";
         if (!contentType.includes("text/event-stream")) {
@@ -139,6 +141,7 @@ export function usePracticeState(idToken: string | null) {
         });
       } finally {
         setGeneratingLectureId(null);
+        setGeneratingKind(null);
       }
     },
     [idToken, sets]
@@ -169,6 +172,7 @@ export function usePracticeState(idToken: string | null) {
     getSetForLecture,
     generateSet,
     generatingLectureId,
+    generatingKind,
     generateError,
     deleteSet,
     clearLocal,
