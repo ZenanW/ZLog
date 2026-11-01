@@ -32,7 +32,7 @@ import {
 export const maxDuration = 120;
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-const DEFAULT_MODEL = "claude-opus-5";
+const DEFAULT_MODEL = "claude-sonnet-5";
 
 function generatePrompt(lectureTitle: string, kinds: PdfKind[], mode: PracticeGenerateMode): string {
   const attached = kinds.map((kind) => `- ${PDF_KIND_LABELS[kind]}`).join("\n");
