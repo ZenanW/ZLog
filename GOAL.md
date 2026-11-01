@@ -96,7 +96,7 @@ No automated test suite exists; do not block on tests. Manual user testing is th
 
 *Agent updates this line every run.*
 
-Practice generate is one kind at a time: 10 multiple choice, or 5 short answers. The structured-output schema requires q1–q10 or q1–q5, so a dense week cannot come back short. Choosing either replaces that lecture's current set. The Today list is unchanged. Email is still later.
+Practice generate is one kind at a time: 10 multiple choice, or 5 short answers, in a single questions array. Choosing either replaces that lecture's current set. The Today list is unchanged. Email is still later.
 
 ## Backlog
 

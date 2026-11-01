@@ -12,52 +12,6 @@ export function practiceCountFor(mode: PracticeGenerateMode): number {
 
 const CHOICE_IDS = ["a", "b", "c", "d"] as const;
 
-/**
- * Anthropic structured outputs cannot set an array length above 1.
- * Required keys q1..qN are what actually force a full set.
- */
-function questionDefinition(mode: PracticeGenerateMode) {
-  const shared = {
-    prompt: { type: "string", description: "The question stem. Must be non-empty." },
-    explanation: { type: "string", description: "One or two sentences shown after answering. Must be non-empty." },
-    slide_reference: { type: "string" },
-  };
-  if (mode === "short") {
-    return {
-      type: "object",
-      additionalProperties: false,
-      required: ["kind", "prompt", "model_answer", "explanation", "slide_reference"],
-      properties: {
-        kind: { type: "string", enum: ["short"] },
-        model_answer: { type: "string", description: "2–4 sentences a strong student would write. Must be non-empty." },
-        ...shared,
-      },
-    };
-  }
-  return {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "prompt", "choices", "correct_choice_id", "model_answer", "explanation", "slide_reference"],
-    properties: {
-      kind: { type: "string", enum: ["mcq"] },
-      choices: {
-        type: "object",
-        additionalProperties: false,
-        required: [...CHOICE_IDS],
-        properties: {
-          a: { type: "string", description: "Option text. Must be non-empty." },
-          b: { type: "string", description: "Option text. Must be non-empty." },
-          c: { type: "string", description: "Option text. Must be non-empty." },
-          d: { type: "string", description: "Option text. Must be non-empty." },
-        },
-      },
-      correct_choice_id: { type: "string", enum: [...CHOICE_IDS] },
-      model_answer: { type: "string" },
-      ...shared,
-    },
-  };
-}
-
 export interface GeneratedQuestionDraft {
   kind: PracticeQuestionKind;
   prompt: string;
@@ -169,21 +123,14 @@ export function normalizeGeneratedQuestion(item: unknown): GeneratedQuestionDraf
   };
 }
 
-function questionItems(raw: Record<string, unknown>, expected: number): unknown[] | null {
-  if (raw.q1 && typeof raw.q1 === "object") {
-    return Array.from({ length: expected }, (_, index) => raw[`q${index + 1}`]);
-  }
-  return Array.isArray(raw.questions) ? raw.questions : null;
-}
-
 export function normalizeGeneratedQuestions(
   raw: unknown,
   mode: PracticeGenerateMode
 ): GeneratedQuestionDraft[] | null {
   if (!raw || typeof raw !== "object") return null;
+  const questions = (raw as { questions?: unknown }).questions;
   const expected = practiceCountFor(mode);
-  const questions = questionItems(raw as Record<string, unknown>, expected);
-  if (!questions || questions.length !== expected) return null;
+  if (!Array.isArray(questions) || questions.length !== expected) return null;
   const drafts: GeneratedQuestionDraft[] = [];
   for (const item of questions) {
     const draft = normalizeGeneratedQuestion(item);
@@ -194,20 +141,45 @@ export function normalizeGeneratedQuestions(
 }
 
 export function practiceOutputSchema(mode: PracticeGenerateMode) {
-  const count = practiceCountFor(mode);
-  const question = questionDefinition(mode);
-  const properties: Record<string, ReturnType<typeof questionDefinition>> = {};
-  const required: string[] = [];
-  for (let index = 1; index <= count; index += 1) {
-    const key = `q${index}`;
-    properties[key] = question;
-    required.push(key);
+  const properties: Record<string, unknown> = {
+    kind: { type: "string", enum: [mode] },
+    prompt: { type: "string" },
+    model_answer: { type: "string" },
+    explanation: { type: "string" },
+    slide_reference: { type: "string" },
+  };
+  const required = ["kind", "prompt", "model_answer", "explanation", "slide_reference"];
+  if (mode === "mcq") {
+    properties.choices = {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "text"],
+        properties: {
+          id: { type: "string", enum: [...CHOICE_IDS] },
+          text: { type: "string" },
+        },
+      },
+    };
+    properties.correct_choice_id = { type: "string", enum: [...CHOICE_IDS] };
+    required.push("choices", "correct_choice_id");
   }
   return {
     type: "object",
     additionalProperties: false,
-    required,
-    properties,
+    required: ["questions"],
+    properties: {
+      questions: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required,
+          properties,
+        },
+      },
+    },
   };
 }
 
@@ -252,64 +224,26 @@ function matchJsonObjectEnd(text: string, start: number): number {
   return -1;
 }
 
-function extractKeyedQuestions(text: string): unknown[] {
-  const objects: unknown[] = [];
-  for (let n = 1; n <= PRACTICE_MCQ_COUNT; n += 1) {
-    const marker = `"q${n}"`;
-    let from = 0;
-    let colon = -1;
-    while (from < text.length) {
-      const at = text.indexOf(marker, from);
-      if (at < 0) break;
-      const next = text.indexOf(":", at + marker.length);
-      if (next < 0) return objects;
-      if (/^\s*$/.test(text.slice(at + marker.length, next))) {
-        colon = next;
-        break;
-      }
-      from = at + marker.length;
-    }
-    if (colon < 0) break;
-    let i = colon + 1;
-    while (i < text.length && /\s/.test(text[i])) i += 1;
-    if (i >= text.length || text[i] !== "{") break;
-    const end = matchJsonObjectEnd(text, i);
-    if (end < 0) break;
-    try {
-      objects.push(JSON.parse(text.slice(i, end + 1)));
-    } catch {
-      break;
-    }
-  }
-  return objects;
-}
-
-function extractQuestionsArray(text: string): unknown[] {
-  const start = findQuestionsArrayStart(text);
+/** Pull finished question objects from a growing structured-output JSON prefix. */
+export function extractQuestionObjects(jsonSoFar: string): unknown[] {
+  const start = findQuestionsArrayStart(jsonSoFar);
   if (start < 0) return [];
   const objects: unknown[] = [];
   let i = start;
-  while (i < text.length) {
-    while (i < text.length && /[\s,]/.test(text[i])) i += 1;
-    if (i >= text.length || text[i] === "]") break;
-    if (text[i] !== "{") break;
-    const end = matchJsonObjectEnd(text, i);
+  while (i < jsonSoFar.length) {
+    while (i < jsonSoFar.length && /[\s,]/.test(jsonSoFar[i])) i += 1;
+    if (i >= jsonSoFar.length || jsonSoFar[i] === "]") break;
+    if (jsonSoFar[i] !== "{") break;
+    const end = matchJsonObjectEnd(jsonSoFar, i);
     if (end < 0) break;
     try {
-      objects.push(JSON.parse(text.slice(i, end + 1)));
+      objects.push(JSON.parse(jsonSoFar.slice(i, end + 1)));
     } catch {
       break;
     }
     i = end + 1;
   }
   return objects;
-}
-
-/** Pull finished question objects from a growing structured-output JSON prefix. */
-export function extractQuestionObjects(jsonSoFar: string): unknown[] {
-  const keyed = extractKeyedQuestions(jsonSoFar);
-  if (keyed.length > 0) return keyed;
-  return extractQuestionsArray(jsonSoFar);
 }
 
 export function missingPracticeTablesMessage(message: string): string | null {

@@ -13,6 +13,7 @@ import {
   missingPracticeTablesMessage,
   normalizeGeneratedQuestion,
   normalizeGeneratedQuestions,
+  PRACTICE_MCQ_CHOICES,
   practiceCountFor,
   practiceOutputSchema,
   type PracticeGenerateMode,
@@ -37,15 +38,15 @@ function generatePrompt(lectureTitle: string, kinds: PdfKind[], mode: PracticeGe
   const attached = kinds.map((kind) => `- ${PDF_KIND_LABELS[kind]}`).join("\n");
   const count = practiceCountFor(mode);
   const task = mode === "mcq"
-    ? `Return exactly ${count} multiple-choice questions in keys q1 through q${count}, in that order. Every question has kind "mcq". Do not write short-answer questions. Set model_answer to an empty string.`
-    : `Return exactly ${count} short-answer questions in keys q1 through q${count}, in that order. Every question has kind "short". Do not write multiple-choice questions.`;
+    ? `Return exactly ${count} multiple-choice questions in the questions array. Every question has kind "mcq". Do not write short-answer questions. Set model_answer to an empty string.`
+    : `Return exactly ${count} short-answer questions in the questions array. Every question has kind "short". Do not write multiple-choice questions.`;
   const diversity = mode === "mcq"
     ? `Mix cognitive demand across the ${count}: at least three recall, four application or worked procedure, and three comparison, edge-case, or "what goes wrong if…".
 - MCQ distractors must be plausible and drawn from nearby concepts (common confusions, swapped terms, off-by-one conditions). No joke or obviously-wrong options.`
     : `Each short answer must require a short explanation (why / how / tradeoff), not a one-word label.
 - model_answer is 2–4 sentences a strong student would write. explanation says how to self-check.`;
   const format = mode === "mcq"
-    ? `MCQ: choices is an object with exactly the keys a, b, c, and d. Each value is non-empty option text. correct_choice_id is a, b, c, or d. Put the correct choice in a varied position — not always a.`
+    ? `MCQ: exactly ${PRACTICE_MCQ_CHOICES} choices with ids a, b, c, d. correct_choice_id is one of those ids. Put the correct choice in a varied position — not always a.`
     : `Short: model_answer is the non-empty answer the student should compare against.`;
 
   return `You are writing a university practice set from the attached weekly materials. The lecture is titled "${lectureTitle}".
