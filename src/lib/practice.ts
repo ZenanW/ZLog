@@ -10,49 +10,53 @@ export function practiceCountFor(mode: PracticeGenerateMode): number {
   return mode === "mcq" ? PRACTICE_MCQ_COUNT : PRACTICE_SHORT_COUNT;
 }
 
-export const PRACTICE_OUTPUT_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["questions"],
-  properties: {
-    questions: {
-      type: "array",
-      items: {
+const CHOICE_IDS = ["a", "b", "c", "d"] as const;
+
+/**
+ * Anthropic structured outputs cannot set an array length above 1.
+ * Required keys q1..qN are what actually force a full set.
+ */
+function questionDefinition(mode: PracticeGenerateMode) {
+  const shared = {
+    prompt: { type: "string", description: "The question stem. Must be non-empty." },
+    explanation: { type: "string", description: "One or two sentences shown after answering. Must be non-empty." },
+    slide_reference: { type: "string" },
+  };
+  if (mode === "short") {
+    return {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "prompt", "model_answer", "explanation", "slide_reference"],
+      properties: {
+        kind: { type: "string", enum: ["short"] },
+        model_answer: { type: "string", description: "2–4 sentences a strong student would write. Must be non-empty." },
+        ...shared,
+      },
+    };
+  }
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "prompt", "choices", "correct_choice_id", "model_answer", "explanation", "slide_reference"],
+    properties: {
+      kind: { type: "string", enum: ["mcq"] },
+      choices: {
         type: "object",
         additionalProperties: false,
-        required: [
-          "kind",
-          "prompt",
-          "choices",
-          "correct_choice_id",
-          "model_answer",
-          "explanation",
-          "slide_reference",
-        ],
+        required: [...CHOICE_IDS],
         properties: {
-          kind: { type: "string", enum: ["mcq", "short"] },
-          prompt: { type: "string" },
-          choices: {
-            type: "array",
-            items: {
-              type: "object",
-              additionalProperties: false,
-              required: ["id", "text"],
-              properties: {
-                id: { type: "string" },
-                text: { type: "string" },
-              },
-            },
-          },
-          correct_choice_id: { type: "string" },
-          model_answer: { type: "string" },
-          explanation: { type: "string" },
-          slide_reference: { type: "string" },
+          a: { type: "string", description: "Option text. Must be non-empty." },
+          b: { type: "string", description: "Option text. Must be non-empty." },
+          c: { type: "string", description: "Option text. Must be non-empty." },
+          d: { type: "string", description: "Option text. Must be non-empty." },
         },
       },
+      correct_choice_id: { type: "string", enum: [...CHOICE_IDS] },
+      model_answer: { type: "string" },
+      ...shared,
     },
-  },
-} as const;
+  };
+}
 
 export interface GeneratedQuestionDraft {
   kind: PracticeQuestionKind;
@@ -97,6 +101,38 @@ function asNonEmptyString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function canonicalChoiceId(value: unknown): string | null {
+  const text = asNonEmptyString(value);
+  if (!text) return null;
+  const id = text.toLowerCase();
+  return (CHOICE_IDS as readonly string[]).includes(id) ? id : null;
+}
+
+function choicesFromUnknown(raw: unknown): PracticeChoice[] | null {
+  if (Array.isArray(raw)) {
+    if (raw.length !== PRACTICE_MCQ_CHOICES) return null;
+    const byId = new Map<string, string>();
+    for (const choice of raw) {
+      if (!choice || typeof choice !== "object") return null;
+      const id = canonicalChoiceId((choice as { id?: unknown }).id);
+      const text = asNonEmptyString((choice as { text?: unknown }).text);
+      if (!id || !text || byId.has(id)) return null;
+      byId.set(id, text);
+    }
+    if (byId.size !== PRACTICE_MCQ_CHOICES) return null;
+    return CHOICE_IDS.map((id) => ({ id, text: byId.get(id)! }));
+  }
+  if (!raw || typeof raw !== "object") return null;
+  const record = raw as Record<string, unknown>;
+  const choices: PracticeChoice[] = [];
+  for (const id of CHOICE_IDS) {
+    const text = asNonEmptyString(record[id] ?? record[id.toUpperCase()]);
+    if (!text) return null;
+    choices.push({ id, text });
+  }
+  return choices;
+}
+
 export function normalizeGeneratedQuestion(item: unknown): GeneratedQuestionDraft | null {
   if (!item || typeof item !== "object") return null;
   const row = item as Record<string, unknown>;
@@ -106,19 +142,9 @@ export function normalizeGeneratedQuestion(item: unknown): GeneratedQuestionDraf
   if (!kind || !prompt || !explanation) return null;
 
   if (kind === "mcq") {
-    if (!Array.isArray(row.choices) || row.choices.length !== PRACTICE_MCQ_CHOICES) return null;
-    const choices: PracticeChoice[] = [];
-    const seen = new Set<string>();
-    for (const choice of row.choices) {
-      if (!choice || typeof choice !== "object") return null;
-      const id = asNonEmptyString((choice as { id?: unknown }).id);
-      const text = asNonEmptyString((choice as { text?: unknown }).text);
-      if (!id || !text || seen.has(id)) return null;
-      seen.add(id);
-      choices.push({ id, text });
-    }
-    const correctChoiceId = asNonEmptyString(row.correct_choice_id);
-    if (!correctChoiceId || !seen.has(correctChoiceId)) return null;
+    const choices = choicesFromUnknown(row.choices);
+    const correctChoiceId = canonicalChoiceId(row.correct_choice_id);
+    if (!choices || !correctChoiceId) return null;
     return {
       kind,
       prompt,
@@ -143,14 +169,21 @@ export function normalizeGeneratedQuestion(item: unknown): GeneratedQuestionDraf
   };
 }
 
+function questionItems(raw: Record<string, unknown>, expected: number): unknown[] | null {
+  if (raw.q1 && typeof raw.q1 === "object") {
+    return Array.from({ length: expected }, (_, index) => raw[`q${index + 1}`]);
+  }
+  return Array.isArray(raw.questions) ? raw.questions : null;
+}
+
 export function normalizeGeneratedQuestions(
   raw: unknown,
   mode: PracticeGenerateMode
 ): GeneratedQuestionDraft[] | null {
   if (!raw || typeof raw !== "object") return null;
-  const questions = (raw as { questions?: unknown }).questions;
   const expected = practiceCountFor(mode);
-  if (!Array.isArray(questions) || questions.length !== expected) return null;
+  const questions = questionItems(raw as Record<string, unknown>, expected);
+  if (!questions || questions.length !== expected) return null;
   const drafts: GeneratedQuestionDraft[] = [];
   for (const item of questions) {
     const draft = normalizeGeneratedQuestion(item);
@@ -161,22 +194,20 @@ export function normalizeGeneratedQuestions(
 }
 
 export function practiceOutputSchema(mode: PracticeGenerateMode) {
+  const count = practiceCountFor(mode);
+  const question = questionDefinition(mode);
+  const properties: Record<string, ReturnType<typeof questionDefinition>> = {};
+  const required: string[] = [];
+  for (let index = 1; index <= count; index += 1) {
+    const key = `q${index}`;
+    properties[key] = question;
+    required.push(key);
+  }
   return {
     type: "object",
     additionalProperties: false,
-    required: ["questions"],
-    properties: {
-      questions: {
-        type: "array",
-        items: {
-          ...PRACTICE_OUTPUT_SCHEMA.properties.questions.items,
-          properties: {
-            ...PRACTICE_OUTPUT_SCHEMA.properties.questions.items.properties,
-            kind: { type: "string", enum: [mode] },
-          },
-        },
-      },
-    },
+    required,
+    properties,
   };
 }
 
@@ -221,26 +252,64 @@ function matchJsonObjectEnd(text: string, start: number): number {
   return -1;
 }
 
-/** Pull finished question objects from a growing structured-output JSON prefix. */
-export function extractQuestionObjects(jsonSoFar: string): unknown[] {
-  const start = findQuestionsArrayStart(jsonSoFar);
+function extractKeyedQuestions(text: string): unknown[] {
+  const objects: unknown[] = [];
+  for (let n = 1; n <= PRACTICE_MCQ_COUNT; n += 1) {
+    const marker = `"q${n}"`;
+    let from = 0;
+    let colon = -1;
+    while (from < text.length) {
+      const at = text.indexOf(marker, from);
+      if (at < 0) break;
+      const next = text.indexOf(":", at + marker.length);
+      if (next < 0) return objects;
+      if (/^\s*$/.test(text.slice(at + marker.length, next))) {
+        colon = next;
+        break;
+      }
+      from = at + marker.length;
+    }
+    if (colon < 0) break;
+    let i = colon + 1;
+    while (i < text.length && /\s/.test(text[i])) i += 1;
+    if (i >= text.length || text[i] !== "{") break;
+    const end = matchJsonObjectEnd(text, i);
+    if (end < 0) break;
+    try {
+      objects.push(JSON.parse(text.slice(i, end + 1)));
+    } catch {
+      break;
+    }
+  }
+  return objects;
+}
+
+function extractQuestionsArray(text: string): unknown[] {
+  const start = findQuestionsArrayStart(text);
   if (start < 0) return [];
   const objects: unknown[] = [];
   let i = start;
-  while (i < jsonSoFar.length) {
-    while (i < jsonSoFar.length && /[\s,]/.test(jsonSoFar[i])) i += 1;
-    if (i >= jsonSoFar.length || jsonSoFar[i] === "]") break;
-    if (jsonSoFar[i] !== "{") break;
-    const end = matchJsonObjectEnd(jsonSoFar, i);
+  while (i < text.length) {
+    while (i < text.length && /[\s,]/.test(text[i])) i += 1;
+    if (i >= text.length || text[i] === "]") break;
+    if (text[i] !== "{") break;
+    const end = matchJsonObjectEnd(text, i);
     if (end < 0) break;
     try {
-      objects.push(JSON.parse(jsonSoFar.slice(i, end + 1)));
+      objects.push(JSON.parse(text.slice(i, end + 1)));
     } catch {
       break;
     }
     i = end + 1;
   }
   return objects;
+}
+
+/** Pull finished question objects from a growing structured-output JSON prefix. */
+export function extractQuestionObjects(jsonSoFar: string): unknown[] {
+  const keyed = extractKeyedQuestions(jsonSoFar);
+  if (keyed.length > 0) return keyed;
+  return extractQuestionsArray(jsonSoFar);
 }
 
 export function missingPracticeTablesMessage(message: string): string | null {
